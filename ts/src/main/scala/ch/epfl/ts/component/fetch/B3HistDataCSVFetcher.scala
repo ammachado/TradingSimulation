@@ -1,11 +1,13 @@
 package ch.epfl.ts.component.fetch
 
-import java.util.{Calendar, Date, Timer}
+import java.util.{Date, Timer}
+import java.time.{LocalDate, LocalDateTime, LocalTime}
+import java.time.format.DateTimeFormatter
 
 import ch.epfl.ts.component.persist.QuotePersistor
-import ch.epfl.ts.data.{Currency, EndOfFetching, Quote}
+import ch.epfl.ts.data.{Currency, Quote}
 
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.DurationInt
 import scala.io.Source
 import scala.language.postfixOps
 import scala.util.parsing.combinator._
@@ -44,21 +46,21 @@ import scala.util.parsing.combinator._
  *                     you read at the same time, but in practice would probably mess up things.
  */
 
-class HistDataCSVFetcher(dataDir: String, currencyPair: String,
-                         start: Date, end: Date,
-                         speed: Double = 1.0) extends PushFetchComponent[Quote] {
+class B3HistDataCSVFetcher(dataDir: String, currencyPair: String,
+                           start: Date, end: Date,
+                           speed: Double = 1.0) extends PushFetchComponent[Quote] {
 
-  val workingDir: String = dataDir + "/" + currencyPair.toUpperCase() + "/";
+  val workingDir = dataDir + "/" + currencyPair.toUpperCase() + "/";
   val (whatC, withC) = Currency.pairFromString(currencyPair);
 
-  val bidPref: String = "DAT_NT_" + currencyPair.toUpperCase() + "_T_BID_"
-  val askPref: String = "DAT_NT_" + currencyPair.toUpperCase() + "_T_ASK_"
+  val bidPref = "DAT_NT_" + currencyPair.toUpperCase() + "_T_BID_"
+  val askPref = "DAT_NT_" + currencyPair.toUpperCase() + "_T_ASK_"
 
   /**
    * Initial delay before starting to send quotes in order to let the system
    * get each component started.
    */
-  val initialDelay: FiniteDuration = 1.second
+  val initialDelay = (1 second)
 
   /**
    * The centerpiece of this class, where we actually load the data.
@@ -68,7 +70,7 @@ class HistDataCSVFetcher(dataDir: String, currencyPair: String,
    * actually reads from disc when it needs to. The data is not prematurely loaded
    * into memory.
    */
-  var allQuotes: Iterator[Quote] = Iterator[Quote]()
+  var allQuotes = Iterator[Quote]()
   loadData()
 
   def loadData() = {
@@ -81,8 +83,8 @@ class HistDataCSVFetcher(dataDir: String, currencyPair: String,
   /**
    * Current and next quotes to be sent, updated whenever a quote was sent.
    */
-  var currentQuote: Quote = allQuotes.next()
-  var nextQuote: Quote = allQuotes.next()
+  var currentQuote = allQuotes.next()
+  var nextQuote = allQuotes.next()
 
   /**
    * Using java.util.Timer to simulate the timing of the quotes when they were generated originally.
@@ -95,26 +97,7 @@ class HistDataCSVFetcher(dataDir: String, currencyPair: String,
 
   class SendQuotes extends java.util.TimerTask {
 
-    override def run() {
-      // Get the currentQuote and send it
-      send(currentQuote)
-
-      // Schedule sending the nextQuote
-      timer.schedule(new SendQuotes(), (1 / speed * (nextQuote.timestamp - currentQuote.timestamp)).toInt)
-
-      if (allQuotes.hasNext) {
-        // If there are more quotes to send, move forward
-        currentQuote = nextQuote
-        nextQuote = allQuotes.next
-      } else if (currentQuote == nextQuote) {
-        // Or maybe we already sent the last quote
-        send(EndOfFetching(currentQuote.timestamp))
-        timer.cancel()
-      } else {
-        // Next scheduled call will send the last quote
-        currentQuote = nextQuote
-      }
-    }
+    def run(): Unit = ???
   }
 
   /**
@@ -148,37 +131,7 @@ class HistDataCSVFetcher(dataDir: String, currencyPair: String,
    *
    * @return A list of months of the form List("201411", "201412", "201501", ...)
    */
-  def monthsBetweenStartAndEnd: List[String] = {
-    val cal = Calendar.getInstance()
-
-    cal.setTime(start)
-    val startYear = cal.get(Calendar.YEAR)
-    val startMonth = cal.get(Calendar.MONTH) + 1
-
-    cal.setTime(end)
-    val endYear = cal.get(Calendar.YEAR)
-    val endMonth = cal.get(Calendar.MONTH) + 1
-
-    List.range(startYear, endYear + 1)
-      // For each of these years, extract the valid months
-      .map(year => {
-        def isMonthInsidePeriod(month: Int): Boolean = {
-          if (startYear != endYear) {
-            (year > startYear && year < endYear) ||
-              (year == startYear && month >= startMonth) ||
-              (year == endYear && month <= endMonth)
-          }
-          else {
-            (month >= startMonth) && (month <= endMonth)
-          }
-        }
-
-        val validMonths = List.range(1, 12 + 1).filter(isMonthInsidePeriod)
-        (year, validMonths)
-      })
-      // Create one string per month, outputs is e.g. List("201304", "201305", ...)
-      .flatMap(l => l._2.map(l2 => l._1.toString + "%02d".format(l2)))
-  }
+  def monthsBetweenStartAndEnd: List[String] = ???
 
   /**
    * Given the parent class variable (workingDir: String), reads
@@ -194,14 +147,14 @@ class HistDataCSVFetcher(dataDir: String, currencyPair: String,
     bidlines.zip(asklines)
       // Combine bid and ask data into one line
       .map(l => {
-        val q = CSVParser.parse(CSVParser.csvcombo, l._1 + " " + l._2).get
+        val q = B3CSVParser.parse(B3CSVParser.csvcombo, l._1 + " " + l._2).get
         // `withC` and `whatC` are not available in the CVS, we add them back
         // after parsing (they are in the path to the file opened above)
         Quote(q.marketId, q.timestamp, whatC, withC, q.bid, q.ask)
       })
   }
 
-  override def stop = {
+  override def stop() = {
     timer.cancel()
   }
 }
@@ -209,7 +162,7 @@ class HistDataCSVFetcher(dataDir: String, currencyPair: String,
 /**
  * Parser object used by HistDataCSVFetcher.parse() to convert the CSV to Quotes.
  */
-object CSVParser extends RegexParsers with java.io.Serializable {
+object B3CSVParser extends RegexParsers with java.io.Serializable {
 
   /**
    * The csvcombo format reads a line of text that has been stitched together from a bid
@@ -221,13 +174,12 @@ object CSVParser extends RegexParsers with java.io.Serializable {
    */
   def csvcombo: Parser[Quote] = {
     datestamp ~ timestamp ~ ";" ~ floatingpoint ~ ";0" ~ datestamp ~ timestamp ~ ";" ~ floatingpoint ~ ";0" ^^ {
-      case d ~ t ~ _ ~ bid ~ _ ~ d2 ~ t2 ~ _ ~ ask ~ _ => Quote(MarketNames.FOREX_ID, toTime(d, t),
-        Currency.DEF, Currency.DEF,
-        bid.toDouble, ask.toDouble)
+      case d ~ t ~ _ ~ bid ~ _ ~ d2 ~ t2 ~ _ ~ ask ~ _ =>
+        Quote(MarketNames.FOREX_ID, toTime(d, t), Currency.DEF, Currency.DEF, bid.toDouble, ask.toDouble)
     }
   }
 
-  val datestamp: Parser[String] = """[0-9]{8}""".r
+  val datestamp: Parser[String] = """[0-9]{4}\-""".r
   val timestamp: Parser[String] = """[0-9]{6}""".r
   val floatingpoint: Parser[String] = """[0-9]*\.?[0-9]*""".r
 
@@ -235,5 +187,67 @@ object CSVParser extends RegexParsers with java.io.Serializable {
 
   def toTime(datestamp: String, timestamp: String): Long = {
     stampFormat.parse(datestamp + timestamp).getTime
+  }
+
+  private[B3CSVParser] def dateTime(pattern: String): Parser[LocalDateTime] = new Parser[LocalDateTime] {
+    val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern(pattern)
+
+    val localDateTimeParser: (CharSequence, Int) => (LocalDateTime, Int) = new ((CharSequence, Int) => (LocalDateTime, Int)) {
+      def apply(text: CharSequence, offset: Int): (LocalDateTime, Int) = {
+        val temporalAccessor = formatter.parse(text)
+        val newPos = offset + pattern.length
+        (LocalDateTime.from(temporalAccessor), newPos)
+      }
+    }
+
+    def apply(in: Input): ParseResult[LocalDateTime] = {
+      val source = in.source
+      val offset = in.offset
+      val start = handleWhiteSpace(source, offset)
+      val (dateTime, endPos) = localDateTimeParser(source, start)
+      if (endPos >= 0)
+        Success(dateTime, in.drop(endPos - offset))
+      else
+        Failure("Failed to parse date", in.drop(start - offset))
+    }
+  }
+
+  private[B3CSVParser] def date(pattern: String): Parser[LocalDate] = new Parser[LocalDate] {
+    val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern(pattern)
+
+    val localDateParser: (CharSequence, Int) => (LocalDate, Int) = new ((CharSequence, Int) => (LocalDate, Int)) {
+      def apply(text: CharSequence, offset: Int): (LocalDate, Int) = {
+        val temporalAccessor = formatter.parse(text)
+        val newPos = offset + pattern.length
+        (LocalDate.from(temporalAccessor), newPos)
+      }
+    }
+
+    def apply(in: Input): ParseResult[LocalDate] = parse(in, localDateParser)
+  }
+
+  private[B3CSVParser] def time(pattern: String): Parser[LocalTime] = new Parser[LocalTime] {
+    val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern(pattern)
+
+    val localTimeParser: ((CharSequence, Int) => (LocalTime, Int)) = new ((CharSequence, Int) => (LocalTime, Int)) {
+      def apply(text: CharSequence, offset: Int): (LocalTime, Int) = {
+        val temporalAccessor = formatter.parse(text)
+        val newPos = offset + pattern.length
+        (LocalTime.from(temporalAccessor), newPos)
+      }
+    }
+
+    override def apply(in: Input) = parse(in, localTimeParser)
+  }
+
+  private def parse[E](in: Input, function: (CharSequence, Int) => (E, Int)) = {
+    val source = in.source
+    val offset = in.offset
+    val start = handleWhiteSpace(source, offset)
+    val (temporalAccessor, endPos) = function(source, start)
+    if (endPos >= 0)
+      Success(temporalAccessor, in.drop(endPos - offset))
+    else
+      Failure("Failed to parse value", in.drop(start - offset))
   }
 }

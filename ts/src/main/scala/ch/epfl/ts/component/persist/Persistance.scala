@@ -6,9 +6,9 @@ import scala.reflect.ClassTag
 
 /**
  * Defines the Persistance interface
- * @tparam T
+ * @tparam T type
  */
-trait Persistance[T] {
+trait Persistance[T] extends Schema {
   def save(t: T)
   def save(ts: List[T])
   def loadSingle(id: Int): T
@@ -18,12 +18,11 @@ trait Persistance[T] {
 /**
  * The Abstraction for the persistance actors
  */
-class Persistor[T: ClassTag](p: Persistance[T])
-  extends Component {
-  val clazz = implicitly[ClassTag[T]].runtimeClass
+class Persistor[T: ClassTag](p: Persistance[T]) extends Component {
+  val clazz: Class[_] = implicitly[ClassTag[T]].runtimeClass
 
-  override def receiver = {
+  override def receiver: PartialFunction[Any, Unit] = {
     case d if clazz.isInstance(d) => p.save(d.asInstanceOf[T])
-    case x => println("Persistance got: " + x.getClass.toString)
+    case x => println(s"Persistance got: ${x.getClass.toString}")
   }
 }

@@ -1,26 +1,14 @@
 package ch.epfl.ts.test.data
 
+import ch.epfl.ts.data._
+import ch.epfl.ts.engine.{ForexMarketRules, Wallet}
+import org.junit.runner.RunWith
+import org.scalatest.FunSuite
+import org.scalatestplus.junit.JUnitRunner
+
 import scala.concurrent.duration.DurationLong
 import scala.language.postfixOps
 import scala.util.Try
-
-import org.junit.runner.RunWith
-import org.scalatest.FunSuite
-import org.scalatest.junit.JUnitRunner
-
-import ch.epfl.ts.data.BooleanParameter
-import ch.epfl.ts.data.CoefficientParameter
-import ch.epfl.ts.data.Currency
-import ch.epfl.ts.data.CurrencyPairParameter
-import ch.epfl.ts.data.MarketRulesParameter
-import ch.epfl.ts.data.NaturalNumberParameter
-import ch.epfl.ts.data.ParameterTrait
-import ch.epfl.ts.data.RealNumberParameter
-import ch.epfl.ts.data.StrategyParameters
-import ch.epfl.ts.data.TimeParameter
-import ch.epfl.ts.data.WalletParameter
-import ch.epfl.ts.engine.ForexMarketRules
-import ch.epfl.ts.engine.Wallet
 
 @RunWith(classOf[JUnitRunner])
 class StrategyParametersTests extends FunSuite {
@@ -179,5 +167,4 @@ class StrategyParametersTests extends FunSuite {
       List(new ForexMarketRules),
       List()
     )
-
 }

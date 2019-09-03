@@ -1,28 +1,19 @@
 package actors
 
-import scala.language.postfixOps
-import akka.actor.Props
-import akka.actor.Actor
-import akka.actor.ActorRef
-import scala.concurrent.duration._
-import akka.actor.ActorSystem
-import akka.actor.ActorPath
-import play.libs.Akka
-import ch.epfl.ts.data.OHLC
-import scala.concurrent.ExecutionContext.Implicits.global
+import akka.actor.{Actor, ActorRef, ActorSelection, Props}
 import ch.epfl.ts.component.ComponentRegistration
-import scala.reflect.ClassTag
-import net.liftweb.json._
-import net.liftweb.json.Serialization.write
-import com.typesafe.config.ConfigFactory
-import ch.epfl.ts.data.Quote
+import ch.epfl.ts.data.{Currency, OHLC, Quote}
 import ch.epfl.ts.indicators.OhlcIndicator
-import ch.epfl.ts.data.Currency
-import scala.collection.mutable.Set
-import ch.epfl.ts.data.TimeParameter
-import ch.epfl.ts.data.OHLC
-import scala.collection.mutable.HashMap
+import com.typesafe.config.ConfigFactory
+import net.liftweb.json.Serialization.write
+import net.liftweb.json._
 import utils.TradingSimulationActorSelection
+
+import scala.collection.mutable
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
+case class SymbolOhlc(whatC: Currency, withC: Currency, ohlc: OHLC)
 
 /**
  * Computes OHLC for each currency based on the quote data fetched in the TradingSimulation backend
@@ -32,18 +23,18 @@ import utils.TradingSimulationActorSelection
  * Starts a child actor for each symbol and converts the result to JSON which included the symbol
  */
 class GlobalOhlc(out: ActorRef) extends Actor {
-  implicit val formats = DefaultFormats
+  implicit val formats: DefaultFormats.type = DefaultFormats
 
   type Symbol = (Currency, Currency)
-  var workers = HashMap[Symbol, ActorRef]()
-  val ohlcPeriod = 1 hour
+  var workers: mutable.HashMap[(Currency, Currency), ActorRef] = mutable.HashMap[Symbol, ActorRef]()
+  val ohlcPeriod: FiniteDuration = 1 hour
 
-  val fetchers = new TradingSimulationActorSelection(context,
+  val fetchers: ActorSelection = new TradingSimulationActorSelection(context,
     ConfigFactory.load().getString("akka.backend.fetchersActorSelection")).get
     
   fetchers ! ComponentRegistration(self, classOf[Quote], "frontendQuote")
 
-  def receive() = {
+  def receive(): PartialFunction[Any, Unit] = {
     case q: Quote =>
       val symbol: Symbol = (q.whatC, q.withC)
       val worker = workers.getOrElseUpdate(symbol,
@@ -59,7 +50,8 @@ class GlobalOhlc(out: ActorRef) extends Actor {
 
     case _ =>
   }
-
 }
 
-case class SymbolOhlc(whatC: Currency, withC: Currency, ohlc: OHLC)
+object GlobalOhlc {
+  def props(out: ActorRef) = Props(new GlobalOhlc(out))
+}

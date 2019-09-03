@@ -85,25 +85,20 @@ class SimpleTraderWithBroker(uid: Long, marketIds: List[Long], parameters: Strat
       log.debug("TraderWithB: trying to add 100 bucks")
       send(FundWallet(uid, Currency.USD, 100))
     }
-    case 'knowYourWallet => {
-      send(GetWalletFunds(uid,this.self))
-    }
-    case p => {
-      println("TraderWithB: received unknown: " + p)
-    }
+    case 'knowYourWallet => send(GetWalletFunds(uid,this.self))
+    case p => println("TraderWithB: received unknown: " + p)
   }
 
-  def placeOrder(order: MarketOrder) = {
+  def placeOrder(order: MarketOrder): Unit = {
     implicit val timeout = new Timeout(500 milliseconds)
     val future = (broker ? order).mapTo[Order]
-    future onSuccess {
+    future.foreach {
       case _: AcceptedOrder => log.debug("TraderWithB: order placement succeeded")
       case _: RejectedOrder => log.debug("TraderWithB: order failed")
       case _ => log.debug("TraderWithB: unknown order response")
     }
-    future onFailure {
-      case p => log.debug("Wallet command failed: " + p)
-    }
+
+    future.failed.foreach(p => log.debug("Wallet command failed: " + p))
   }
 
   override def init = {

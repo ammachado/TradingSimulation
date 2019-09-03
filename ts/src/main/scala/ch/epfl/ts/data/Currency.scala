@@ -1,7 +1,5 @@
 package ch.epfl.ts.data
 
-import akka.util.HashCode
-
 /**
  * Enum for Currencies
  */
@@ -21,20 +19,21 @@ object Currency extends Serializable {
   val GBP = Currency("gbp")
   val AUD = Currency("aud")
   val CAD = Currency("cad")
+  val BRL = Currency("brl")
 
   /** Fallback currency ("default") */
   val DEF = Currency("def")
 
-  def values = Seq(BTC, LTC, USD, CHF, RUR, EUR, JPY, GBP, AUD, CAD, DEF)
+  def values: Seq[Currency] = Seq(BTC, LTC, USD, CHF, RUR, EUR, JPY, GBP, AUD, CAD, BRL, DEF)
+
   def supportedCurrencies(): Set[Currency] = values.toSet
 
   def fromString(s: String): Currency = {
     this.values.find(v => v.toString().toLowerCase() == s.toLowerCase()) match {
       case Some(currency) => currency
-      case None => throw new UnsupportedOperationException("Currency " + s + " is not supported.")
+      case None => throw new UnsupportedOperationException(s"Currency $s is not supported.")
     }
   }
-
 
   /**
    * Creates a tuple of currencies given a string
@@ -51,8 +50,8 @@ object Currency extends Serializable {
  * Need this (as a top level class) to help serializability
  */
 class Currency(val s: String) extends Serializable {
-  override def toString() = s.toString()
-  override def equals(other: Any) = other match {
+  override def toString: String = s.toString
+  override def equals(other: Any): Boolean = other match {
     case c: Currency => c.s == this.s
     case _ => false
   }

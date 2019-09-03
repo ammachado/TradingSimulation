@@ -1,23 +1,13 @@
 package ch.epfl.ts.example
 
-import scala.language.postfixOps
-import scala.io.Source
-import scala.concurrent.duration.DurationInt
-import ch.epfl.ts.component.ComponentBuilder
-import ch.epfl.ts.data.Currency
-import ch.epfl.ts.traders.RangeTrader
-import ch.epfl.ts.data.StrategyParameters
-import scala.concurrent.duration.FiniteDuration
-import ch.epfl.ts.traders.MovingAverageTrader
-import ch.epfl.ts.engine.Wallet
-import ch.epfl.ts.data.CurrencyPairParameter
-import ch.epfl.ts.data.RealNumberParameter
-import ch.epfl.ts.data.WalletParameter
-import ch.epfl.ts.data.TimeParameter
 import ch.epfl.ts.component.StartSignal
-import ch.epfl.ts.data.NaturalNumberParameter
-import ch.epfl.ts.data.BooleanParameter
-import ch.epfl.ts.data.CoefficientParameter
+import ch.epfl.ts.data.{Currency, CurrencyPairParameter, Parameter, WalletParameter}
+import ch.epfl.ts.engine.Wallet
+import ch.epfl.ts.traders.RangeTrader
+
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.io.Source
+import scala.language.postfixOps
 
 /**
  * Class used for a live demo of the project
@@ -26,7 +16,7 @@ object DemoExample extends AbstractOptimizationExample {
 
   override val maximumRunDuration: Option[FiniteDuration] = None
 
-  val symbol = (Currency.EUR, Currency.CHF)
+  val symbol: (Currency, Currency) = (Currency.EUR, Currency.CHF)
 
   // Historical data
   val useLiveData = false
@@ -35,24 +25,28 @@ object DemoExample extends AbstractOptimizationExample {
   val endDate = "201505"
 
   // Evaluation
-  override val evaluationPeriod = (10 seconds)
+  override val evaluationPeriod: FiniteDuration = 10.seconds
 
   /** Names for our trader instances */
-  override lazy val traderNames = {
+  override lazy val traderNames: Set[String] = {
     val urlToNames = getClass.getResource("/names-shuffled.txt")
     val names = Source.fromFile(urlToNames.toURI()).getLines()
     names.toSet
   }
 
   // Trading strategy
-  val maxInstances = traderNames.size
-  val strategy = RangeTrader
-  val parametersToOptimize = Set(
-    RangeTrader.ORDER_WINDOW)
-  val otherParameterValues = {
+  val maxInstances: Int = traderNames.size
+  val strategy: RangeTrader.type = RangeTrader
+
+  val parametersToOptimize: Set[String] = Set(RangeTrader.ORDER_WINDOW)
+
+  val otherParameterValues: Map[String, Parameter] = {
     val initialWallet: Wallet.Type = Map(symbol._1 -> 0, symbol._2 -> 5000.0)
-    Map(RangeTrader.INITIAL_FUNDS -> WalletParameter(initialWallet),
-      RangeTrader.SYMBOL -> CurrencyPairParameter(symbol))
+
+    Map(
+      RangeTrader.INITIAL_FUNDS -> WalletParameter(initialWallet),
+      RangeTrader.SYMBOL -> CurrencyPairParameter(symbol)
+    )
   }
 
   override def main(args: Array[String]): Unit = {

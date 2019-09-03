@@ -18,7 +18,7 @@ abstract class PullFetch[T] extends Fetch[T] {
 
 /* Direction PUSH */
 abstract class PushFetch[T] extends Fetch[T] {
-  var callback: (T => Unit)
+  var callback: T => Unit
 }
 
 /* Actor implementation */
@@ -29,7 +29,7 @@ class PullFetchComponent[T: ClassTag](f: PullFetch[T]) extends FetchingComponent
   
   system.scheduler.schedule(10 milliseconds, f.interval() milliseconds, self, 'DoFetchNow)
 
-  override def receiver = {
+  override def receiver: PartialFunction[Any, Unit] = {
     // pull and send to each listener
     case 'DoFetchNow =>
       f.fetch().map(t => send[T](t))
@@ -43,7 +43,7 @@ class PullFetchListComponent[T: ClassTag](f: PullFetch[T]) extends FetchingCompo
   
   system.scheduler.schedule(0 milliseconds, f.interval() milliseconds, self, 'DoFetchNow)
 
-  override def receiver = {
+  override def receiver: PartialFunction[Any, Unit] = {
     // pull and send to each listener
     case 'DoFetchNow =>
       send(f.fetch())
@@ -59,9 +59,9 @@ class PullFetchListComponent[T: ClassTag](f: PullFetch[T]) extends FetchingCompo
  *    to send data to components connected to your fetcher
  */
 class PushFetchComponent[T: ClassTag] extends FetchingComponent {
-  override def receiver = {
+  override def receiver: PartialFunction[Any, Unit] = {
     case _ =>
   }
 
-  def callback(data: T) = send(data)
+  def callback(data: T): Unit = send(data)
 }

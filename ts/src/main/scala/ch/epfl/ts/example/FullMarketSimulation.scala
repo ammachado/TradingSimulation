@@ -25,12 +25,12 @@ import ch.epfl.ts.engine.rules.{SimulationMarketRulesWrapper, FxMarketRulesWrapp
  * Market simulation with first reading historical data and then running simulation on its own.
  */
 object FullMarketSimulation {
-  var producers = Map[Class[_], List[ComponentRef]]()
-  var consuments = Map[Class[_], List[ComponentRef]]()
+  var producers: Map[Class[_], List[ComponentRef]] = Map[Class[_], List[ComponentRef]]()
+  var consuments: Map[Class[_], List[ComponentRef]] = Map[Class[_], List[ComponentRef]]()
 
   def main(args: Array[String]): Unit = {
     //TODO(sygi): create functions to build multiple components to slim main down
-    implicit val builder = new ComponentBuilder
+    implicit val builder: ComponentBuilder = new ComponentBuilder
     initProducersAndConsuments()
 
     val useLiveData = false
@@ -51,8 +51,8 @@ object FullMarketSimulation {
     val broker = builder.createRef(Props(classOf[StandardBroker]), "Broker")
     addConsument(classOf[Quote], broker)
 
-    trader->(broker, classOf[Register])
-    trader->(broker, classOf[FundWallet])
+    trader -> (broker, classOf[Register])
+    trader -> (broker, classOf[FundWallet])
     connectAllOrders(trader, broker)
 
     // Fetcher
@@ -62,13 +62,13 @@ object FullMarketSimulation {
     val fetcherRules = new FxMarketRulesWrapper
     val simulationRules = new SimulationMarketRulesWrapper
     val market = builder.createRef(Props(classOf[HybridMarketSimulator], marketId, fetcherRules, simulationRules), MarketNames.FOREX_NAME)
-    fetcher->(market, classOf[Quote])
+    fetcher -> (market, classOf[Quote])
 
     addProducer(classOf[Quote], market)
     addProducer(classOf[TheTimeIs], market)
     addConsument(classOf[TheTimeIs], trader)
     connectAllOrders(broker, market)
-    market->(broker, classOf[ExecutedBidOrder], classOf[ExecutedAskOrder])
+    market -> (broker, classOf[ExecutedBidOrder], classOf[ExecutedAskOrder])
 
     connectProducersWithConsuments()
 
@@ -88,39 +88,39 @@ object FullMarketSimulation {
     timer.schedule(new StopFetcher, delay)
   }
 
-  def initProducersAndConsuments() = {
+  def initProducersAndConsuments(): Unit = {
     val messageClasses = List(classOf[Quote], classOf[Transaction])
-    for(msg <- messageClasses) {
+    for (msg <- messageClasses) {
       producers = producers + (msg -> List())
       consuments = consuments + (msg -> List())
     }
   }
 
-  def addProducer(msg: Class[_], component: ComponentRef) =
+  def addProducer(msg: Class[_], component: ComponentRef): Unit =
     producers = addEntity(msg, component, producers)
 
-  def addConsument(msg: Class[_], component: ComponentRef) =
+  def addConsument(msg: Class[_], component: ComponentRef): Unit =
     consuments = addEntity(msg, component, consuments)
 
-  def addEntity(msg: Class[_], component: ComponentRef, mapping: Map[Class[_], List[ComponentRef]]) =
+  def addEntity(msg: Class[_], component: ComponentRef, mapping: Map[Class[_], List[ComponentRef]]): Map[Class[_], List[ComponentRef]] =
     mapping + (msg -> (component :: mapping.getOrElse(msg, List())))
 
-  def connectProducersWithConsuments() = {
-    for(msgClass <- producers.keys){
-        for(myProducers <- producers.get(msgClass); myConsuments <- consuments.get(msgClass)) {
-          for (producer <- myProducers; consument <- myConsuments) {
-            if (producer != consument) {
-              producer ->(consument, msgClass)
-            }
+  def connectProducersWithConsuments(): Unit = {
+    for (msgClass <- producers.keys) {
+      for (myProducers <- producers.get(msgClass); myConsuments <- consuments.get(msgClass)) {
+        for (producer <- myProducers; consument <- myConsuments) {
+          if (producer != consument) {
+            producer -> (consument, msgClass)
           }
         }
+      }
     }
   }
 
-  def connectAllOrders(source: ComponentRef, destination: ComponentRef) =
-    source->(destination, classOf[LimitBidOrder], classOf[LimitAskOrder], classOf[MarketBidOrder], classOf[MarketAskOrder])
+  def connectAllOrders(source: ComponentRef, destination: ComponentRef): Seq[Unit] =
+    source -> (destination, classOf[LimitBidOrder], classOf[LimitAskOrder], classOf[MarketBidOrder], classOf[MarketAskOrder])
 
-  def createFetcher(useLiveData: Boolean, builder: ComponentBuilder, symbol: (Currency, Currency)) = {
+  def createFetcher(useLiveData: Boolean, builder: ComponentBuilder, symbol: (Currency, Currency)): ComponentRef = {
     if (useLiveData) {
       val fetcherFx: TrueFxFetcher = new TrueFxFetcher
       builder.createRef(Props(classOf[PullFetchComponent[Quote]], fetcherFx, implicitly[ClassTag[Quote]]), "TrueFxFetcher")

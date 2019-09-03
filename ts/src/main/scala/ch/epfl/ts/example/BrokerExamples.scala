@@ -1,10 +1,9 @@
 package ch.epfl.ts
 
-import com.typesafe.config.ConfigFactory
 import akka.actor.Props
 import ch.epfl.ts.component.ComponentBuilder
 import ch.epfl.ts.traders.SimpleTraderWithBroker
-import ch.epfl.ts.data.{MarketAskOrder, Order, Register, StrategyParameters}
+import ch.epfl.ts.data.{MarketAskOrder, Register, StrategyParameters}
 import com.typesafe.config.ConfigFactory
 import ch.epfl.ts.brokers.StandardBroker
 import ch.epfl.ts.data.WalletParameter
@@ -16,7 +15,7 @@ import ch.epfl.ts.component.fetch.MarketNames
  */
 object BrokerExamples {
   def main(args: Array[String]): Unit = {
-    implicit val builder = new ComponentBuilder("TestingBroker", ConfigFactory.parseString("akka.loglevel = \"DEBUG\""))
+    implicit val builder: ComponentBuilder = new ComponentBuilder("TestingBroker", ConfigFactory.parseString("akka.loglevel = \"DEBUG\""))
     val broker = builder.createRef(Props(classOf[StandardBroker]), "Broker")
 
     val tId = 15L
@@ -30,6 +29,5 @@ object BrokerExamples {
     trader->(broker, classOf[MarketAskOrder])
 
     builder.start
-
   }
 }

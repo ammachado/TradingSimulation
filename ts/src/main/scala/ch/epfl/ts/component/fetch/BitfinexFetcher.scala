@@ -1,8 +1,8 @@
 package ch.epfl.ts.component.fetch
 
 import ch.epfl.ts.data.Currency
-import ch.epfl.ts.data.{DelOrder, LimitOrder, LimitAskOrder, LimitBidOrder, Order, Transaction}
-import net.liftweb.json.parse
+import ch.epfl.ts.data.{DelOrder, LimitAskOrder, LimitBidOrder, LimitOrder, Order, Transaction}
+import net.liftweb.json.{DefaultFormats, parse}
 import org.apache.http.client.fluent._
 
 /**
@@ -11,7 +11,7 @@ import org.apache.http.client.fluent._
 class BitfinexTransactionPullFetcher extends PullFetch[Transaction] {
   val btce = new BitfinexAPI(Currency.USD, Currency.BTC)
   var count = 2000
-  var latest = new Transaction(0, 0.0, 0.0, 0, Currency.BTC, Currency.USD, 0, 0, 0, 0)
+  var latest = Transaction(0, 0.0, 0.0, 0, Currency.BTC, Currency.USD, 0, 0, 0, 0)
 
   override def interval(): Int = 12000
 
@@ -19,7 +19,7 @@ class BitfinexTransactionPullFetcher extends PullFetch[Transaction] {
     val trades = btce.getTrade(count)
     val idx = trades.indexOf(latest)
     count = if (idx < 0) 2000 else Math.min(10 * idx, 2000)
-    latest = if (trades.length == 0) latest else trades.head
+    latest = if (trades.isEmpty) latest else trades.head
 
     if (idx > 0)
       trades.slice(0, idx)
@@ -35,7 +35,7 @@ class BitfinexOrderPullFetcher extends PullFetch[Order] {
   val bitstampApi = new BitfinexAPI(Currency.USD, Currency.BTC)
   var count = 2000
   // Contains the OrderId and The fetch timestamp
-  var oldOrderBook = Map[Order, (Long, Long)]()
+  var oldOrderBook: Map[Order, (Long, Long)] = Map[Order, (Long, Long)]()
   var oid = 15000000000L
 
   override def interval(): Int = 12000
@@ -52,7 +52,7 @@ class BitfinexOrderPullFetcher extends PullFetch[Order] {
 
     // Indexes deleted orders and removes them from the map
     val indexedDelOrders = delOrders map { k =>
-      val oidts: (Long, Long) = oldOrderBook.get(k).get
+      val oidts: (Long, Long) = oldOrderBook(k)
       oldOrderBook -= k
       k match {
         case LimitBidOrder(o, u, ft, wac, wic, v, p) => DelOrder(oidts._1, oidts._1, oidts._2, wac, wic, v, p)
@@ -82,9 +82,9 @@ private[this] case class BitfinexOrder(price: String, amount: String, timestamp:
 private[this] case class BitfinexDepth(bids: List[BitfinexOrder], asks: List[BitfinexOrder])
 
 class BitfinexAPI(from: Currency, to: Currency) {
-  implicit val formats = net.liftweb.json.DefaultFormats
+  implicit val formats: DefaultFormats.type = net.liftweb.json.DefaultFormats
   val serverBase = "https://api.bitfinex.com/v1/"
-  val pair = pair2path
+  val pair: String = pair2path
 
   /**
    * Fetches count transactions from Bitfinex's HTTP trade API
@@ -96,8 +96,8 @@ class BitfinexAPI(from: Currency, to: Currency) {
     val json = Request.Get(path).execute().returnContent().asString()
     val o = parse(json).extract[List[BitfinexCaseTransaction]]
 
-    if (o.length != 0) {
-      o.map(f => new Transaction(0, f.price.toDouble, f.amount.toDouble, f.timestamp, Currency.BTC, Currency.USD, 0, 0, 0, 0))
+    if (o.nonEmpty) {
+      o.map(f => Transaction(0, f.price.toDouble, f.amount.toDouble, f.timestamp, Currency.BTC, Currency.USD, 0, 0, 0, 0))
     } else {
       List[Transaction]()
     }
@@ -126,8 +126,9 @@ class BitfinexAPI(from: Currency, to: Currency) {
     t
   }
 
-  private def pair2path = (from, to) match {
+  private def pair2path: String = (from, to) match {
     case (Currency.USD, Currency.BTC) => "btcusd"
     case (Currency.BTC, Currency.USD) => "btcusd"
+    case _ => ???
   }
 }

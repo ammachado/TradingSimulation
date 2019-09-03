@@ -2,7 +2,6 @@ package ch.epfl.ts.engine
 
 import ch.epfl.ts.data.Order
 
-import scala.collection.mutable.{HashMap => MHashMap, TreeSet => MTreeSet}
 import scala.collection.mutable
 
 /**
@@ -14,10 +13,12 @@ import scala.collection.mutable
  * in linear time.
  */
 class PartialOrderBook(val comparator: Ordering[Order]) {
+
   // orders ordered by the comparator
-  val book = MTreeSet[Order]()(comparator)
+  val book: mutable.TreeSet[Order] = mutable.TreeSet[Order]()(comparator)
+
   // key: orderId, value: order
-  val bookMap = MHashMap[Long, Order]()
+  val bookMap: mutable.HashMap[Long, Order] = mutable.HashMap[Long, Order]()
 
   /**
    * delete order from the book.
@@ -34,11 +35,11 @@ class PartialOrderBook(val comparator: Ordering[Order]) {
     book add o
   }
 
-  def isEmpty = book.isEmpty
+  def isEmpty: Boolean = book.isEmpty
 
-  def head = book.head
+  def head: Order = book.head
 
-  def size = book.size
+  def size: Int = book.size
 
   override def toString :String = {
     val sb = new mutable.StringBuilder

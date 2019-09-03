@@ -10,8 +10,8 @@ import ch.epfl.ts.engine.{MarketRules, OrderBookMarketSimulator}
  */
 class BenchmarkOrderBookMarketSimulator(marketId: Long, rules: MarketRules) extends OrderBookMarketSimulator(marketId, rules) {
 
-  override def receiver = {
-    case last: LastOrder =>
+  override def receiver: PartialFunction[Any, Unit] = {
+    case _: LastOrder =>
       send(FinishedProcessingOrders(book.asks.size, book.bids.size));
       
     case limitBid: LimitBidOrder =>

@@ -1,34 +1,21 @@
 package ch.epfl.ts.test.traders
 
+import akka.actor.{ActorRef, Props, actorRef2Scala}
+import akka.testkit.EventFilter
+import ch.epfl.ts.component.StartSignal
+import ch.epfl.ts.component.fetch.MarketNames
+import ch.epfl.ts.data._
+import ch.epfl.ts.engine.{ForexMarketRules, Wallet}
+import ch.epfl.ts.indicators.SMA
+import ch.epfl.ts.test.{ActorTestSuite, FxMarketWrapped, SimpleBrokerWrapped}
+import ch.epfl.ts.traders.MovingAverageTrader
+import org.junit.runner.RunWith
+import org.scalatestplus.junit.JUnitRunner
+
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.math.floor
 import scala.reflect.ClassTag
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.actorRef2Scala
-import akka.testkit.EventFilter
-import ch.epfl.ts.component.StartSignal
-import ch.epfl.ts.component.fetch.MarketNames
-import ch.epfl.ts.data.BooleanParameter
-import ch.epfl.ts.data.Currency
-import ch.epfl.ts.data.CurrencyPairParameter
-import ch.epfl.ts.data.Quote
-import ch.epfl.ts.data.RealNumberParameter
-import ch.epfl.ts.data.StrategyParameters
-import ch.epfl.ts.data.TimeParameter
-import ch.epfl.ts.data.WalletParameter
-import ch.epfl.ts.engine.ForexMarketRules
-import ch.epfl.ts.engine.Wallet
-import ch.epfl.ts.test.ActorTestSuite
-import ch.epfl.ts.test.FxMarketWrapped
-import ch.epfl.ts.test.SimpleBrokerWrapped
-import ch.epfl.ts.traders.MovingAverageTrader
-import ch.epfl.ts.data.NaturalNumberParameter
-import ch.epfl.ts.indicators.SMA
-import ch.epfl.ts.data.CoefficientParameter
 
 /**
  * @warning Some of the following tests are dependent and should be executed in the specified order.
@@ -169,4 +156,3 @@ class MovingAverageTraderWrapped(uid: Long, marketIds: List[Long], parameters: S
   }
   override def send[T: ClassTag](t: List[T]) = t.map(broker ! _)
 }
-

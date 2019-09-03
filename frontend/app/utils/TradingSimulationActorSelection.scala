@@ -1,14 +1,14 @@
 package utils
 
-import com.typesafe.config.ConfigFactory
-import akka.actor.ActorContext
+import com.typesafe.config.{Config, ConfigFactory}
+import akka.actor.{ActorContext, ActorSelection}
 
 class TradingSimulationActorSelection(context: ActorContext, actorSelection: String = "/user/*") {
-  val config = ConfigFactory.load()
-  val name = config.getString("akka.backend.systemName")
-  val hostname = config.getString("akka.backend.hostname")
-  val port = config.getString("akka.backend.port")
-  val actors = context.actorSelection("akka.tcp://" + name + "@" + hostname + ":" + port + actorSelection)
+  val config: Config = ConfigFactory.load()
+  val name: String = config.getString("akka.backend.systemName")
+  val hostname: String = config.getString("akka.backend.hostname")
+  val port: String = config.getString("akka.backend.port")
+  val actors: ActorSelection = context.actorSelection("akka.tcp://" + name + "@" + hostname + ":" + port + actorSelection)
   
-  def get = actors
+  def get: ActorSelection = actors
 }

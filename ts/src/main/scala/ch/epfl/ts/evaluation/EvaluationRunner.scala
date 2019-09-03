@@ -1,35 +1,26 @@
 package ch.epfl.ts.evaluation
 
-import ch.epfl.ts.component.fetch.{ HistDataCSVFetcher, MarketNames }
-import ch.epfl.ts.component.{ ComponentBuilder, ComponentRef }
-import ch.epfl.ts.data.Currency
-import ch.epfl.ts.data._
-import ch.epfl.ts.engine.{Wallet, MarketFXSimulator, ForexMarketRules}
-import ch.epfl.ts.indicators.SMA
 import akka.actor.Props
+import ch.epfl.ts.brokers.StandardBroker
+import ch.epfl.ts.component.fetch.{HistDataCSVFetcher, MarketNames}
+import ch.epfl.ts.component.utils.Printer
+import ch.epfl.ts.component.{ComponentBuilder, ComponentRef}
+import ch.epfl.ts.data.{Currency, _}
+import ch.epfl.ts.engine._
+import ch.epfl.ts.engine.rules.FxMarketRulesWrapper
 import ch.epfl.ts.traders.MovingAverageTrader
+
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
-import ch.epfl.ts.component.utils.Printer
-import ch.epfl.ts.indicators.EmaIndicator
-import ch.epfl.ts.indicators.OhlcIndicator
-import ch.epfl.ts.indicators.EMA
-import ch.epfl.ts.engine.Wallet
-import ch.epfl.ts.brokers.StandardBroker
-import ch.epfl.ts.engine.ExecutedAskOrder
-import ch.epfl.ts.engine.GetWalletFunds
-import ch.epfl.ts.engine.FundWallet
-import ch.epfl.ts.engine.ExecutedBidOrder
-import ch.epfl.ts.engine.rules.FxMarketRulesWrapper
 
 /**
  * Evaluates the performance of trading strategies
  */
 //TODO Make Evaluator consistent with a Trader connected to a Broker which provide wallet-awareness
 object EvaluationRunner {
-  implicit val builder = new ComponentBuilder("evaluation")
+  implicit val builder: ComponentBuilder = new ComponentBuilder("evaluation")
 
-  def test(trader: ComponentRef, traderId: Long, symbol: (Currency, Currency)) = {
+  def test(trader: ComponentRef, traderId: Long, symbol: (Currency, Currency)): List[Unit] = {
     val marketForexId = MarketNames.FOREX_ID
 
     // Fetcher
@@ -70,7 +61,7 @@ object EvaluationRunner {
     builder.start
   }
 
-  def movingAverageTrader(traderId: Long, symbol: (Currency, Currency)) = {
+  def movingAverageTrader(traderId: Long, symbol: (Currency, Currency)): ComponentRef = {
     // Trader
     val marketIds = List(MarketNames.FOREX_ID)
     val periods = List(2, 10)
@@ -79,7 +70,7 @@ object EvaluationRunner {
       MovingAverageTrader.INITIAL_FUNDS -> WalletParameter(initialFunds),
       MovingAverageTrader.SYMBOL -> CurrencyPairParameter(symbol),
       MovingAverageTrader.OHLC_PERIOD -> new TimeParameter(1 minute),
-      MovingAverageTrader.SHORT_PERIODS -> NaturalNumberParameter(periods(0)),
+      MovingAverageTrader.SHORT_PERIODS -> NaturalNumberParameter(periods.head),
       MovingAverageTrader.LONG_PERIODS -> NaturalNumberParameter(periods(1)),
       MovingAverageTrader.TOLERANCE -> RealNumberParameter(0.0002))
 

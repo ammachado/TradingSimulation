@@ -1,25 +1,19 @@
 package ch.epfl.ts.test
 
-import scala.language.postfixOps
-import scala.concurrent.duration.DurationInt
-import scala.reflect.ClassTag
-
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.BeforeAndAfterEach
-import org.scalatest.WordSpecLike
-
-import com.typesafe.config.ConfigFactory
-
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
-import akka.actor.actorRef2Scala
+import akka.actor.{ActorRef, ActorSystem, actorRef2Scala}
 import akka.testkit.TestKit
 import akka.util.Timeout
 import ch.epfl.ts.brokers.StandardBroker
 import ch.epfl.ts.component.ComponentBuilder
-import scala.concurrent.Await
 import ch.epfl.ts.engine.rules.FxMarketRulesWrapper
-import ch.epfl.ts.engine.{MarketFXSimulator, ForexMarketRules}
+import ch.epfl.ts.engine.{ForexMarketRules, MarketFXSimulator}
+import com.typesafe.config.ConfigFactory
+import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach, WordSpecLike}
+
+import scala.concurrent.Await
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.language.postfixOps
+import scala.reflect.ClassTag
 
 
 object TestHelpers {
@@ -42,15 +36,14 @@ abstract class ActorTestSuite(val name: String)
   with BeforeAndAfterAll
   with BeforeAndAfterEach {
   
-  implicit val builder = new ComponentBuilder(system)
+  implicit val builder: ComponentBuilder = new ComponentBuilder(system)
   
-  val shutdownTimeout = 3 seconds
+  val shutdownTimeout: FiniteDuration = 3 seconds
   
 	/** After all tests have run, shut down the system */
-  override def afterAll() = {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system, shutdownTimeout)
   }
-  
 }
 
 /**
@@ -61,17 +54,16 @@ class SimpleBrokerWrapped(market: ActorRef) extends StandardBroker {
     market ! t
   }
 
-  override def send[T: ClassTag](t: List[T]) = t.map(market ! _)
+  override def send[T: ClassTag](t: List[T]): Unit = t.foreach(market ! _)
 }
 
 /**
  * A bit dirty hack to allow ComponentRef-like communication between components, while having them in Test ActorSystem
  */
 class FxMarketWrapped(uid: Long, rules: ForexMarketRules) extends MarketFXSimulator(uid, new FxMarketRulesWrapper(rules)) {
-  import context.dispatcher
   override def send[T: ClassTag](t: T) {
     val brokerSelection = context.actorSelection("/user/brokers/*")
-    implicit val timeout = new Timeout(100 milliseconds)
+    implicit val timeout: Timeout = new Timeout(100 milliseconds)
     val broker = Await.result(brokerSelection.resolveOne(), timeout.duration)
     println("Tried to get Broker: " + broker)
     println("Market sent to Broker ONLY: " + t)

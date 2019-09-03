@@ -1,9 +1,6 @@
 package ch.epfl.ts.engine
 
-import scala.collection.mutable.{ HashMap => MHashMap }
-import ch.epfl.ts.component.Component
 import ch.epfl.ts.data._
-
 
 /**
  * Message used to print the books contents (since we use PriotityQueues, it's the heap order)
@@ -13,7 +10,7 @@ case object PrintBooks
 //TODO(sygi): this can (and should) be rewritten in terms of SimulationMarketRulesWrapper
 class OrderBookMarketSimulator(marketId: Long, rules: MarketRules) extends MarketSimulator(marketId, rules) {
   
-  override def receiver = {
+  override def receiver: PartialFunction[Any, Unit] = {
     case limitBid: LimitBidOrder =>
       val currentPrice = tradingPrices((limitBid.withC, limitBid.whatC))
       val newBidPrice = rules.matchingFunction(
@@ -45,9 +42,9 @@ class OrderBookMarketSimulator(marketId: Long, rules: MarketRules) extends Marke
       val newBidPrice = rules.matchingFunction(
         marketId, marketBid, book.bids, book.asks,
         this.send[Streamable],
-        (a, b) => true,
+        (_, _) => true,
         currentPrice._1,
-        (marketBid, bidOrdersBook) => println("MS: market order discarded - there is no matching order"))
+        (_, _) => println("MS: market order discarded - there is no matching order"))
       tradingPrices((marketBid.withC, marketBid.whatC)) = (newBidPrice, currentPrice._2)
 
     case marketAsk: MarketAskOrder =>
@@ -56,9 +53,9 @@ class OrderBookMarketSimulator(marketId: Long, rules: MarketRules) extends Marke
       val newAskPrice = rules.matchingFunction(
         marketId, marketAsk, book.asks, book.bids,
         this.send[Streamable],
-        (a, b) => true,
+        (_, _) => true,
         currentPrice._2,
-        (marketAsk, askOrdersBook) => println("MS: market order discarded - there is no matching order"))
+        (_, _) => println("MS: market order discarded - there is no matching order"))
       tradingPrices((marketAsk.withC, marketAsk.whatC)) = (currentPrice._1, newAskPrice)
 
     case del: DelOrder =>
@@ -70,13 +67,13 @@ class OrderBookMarketSimulator(marketId: Long, rules: MarketRules) extends Marke
       // TODO: how to know which currency of the two was bought? (Which to update, bid or ask price?)
       tradingPrices((t.withC, t.whatC)) = (???, ???)
 
-    case q: Quote =>
+    case _: Quote =>
       throw new UnsupportedOperationException("OrderBook MarketSimulator should never receive and handle quotes. It generates them by itself.")
 
     case PrintBooks =>
       // print shows heap order (binary tree)
-      println("Ask Orders Book: " + book.bids)
-      println("Bid Orders Book: " + book.asks)
+      println(s"Ask Orders Book: ${book.bids}")
+      println(s"Bid Orders Book: ${book.asks}")
 
     case _ =>
       println("MS: got unknown")

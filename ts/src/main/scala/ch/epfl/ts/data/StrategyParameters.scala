@@ -1,11 +1,10 @@
 package ch.epfl.ts.data
 
-import scala.concurrent.duration.{ TimeUnit, FiniteDuration, DurationLong, MILLISECONDS => MillisecondsUnit }
-import scala.reflect.ClassTag
-import ch.epfl.ts.engine.MarketRules
-import ch.epfl.ts.engine.ForexMarketRules
 import ch.epfl.ts.benchmark.marketSimulator.BenchmarkMarketRules
-import ch.epfl.ts.engine.Wallet
+import ch.epfl.ts.engine.{ForexMarketRules, MarketRules, Wallet}
+
+import scala.concurrent.duration.{DurationLong, FiniteDuration, TimeUnit, MILLISECONDS => MillisecondsUnit}
+import scala.reflect.ClassTag
 
 
 /**
@@ -17,9 +16,9 @@ import ch.epfl.ts.engine.Wallet
  */
 class StrategyParameters(params: (String, Parameter)*) extends Serializable {
   type Key = String
-  val parameters = params.toMap
+  val parameters: Map[String, Parameter] = params.toMap
 
-  override def equals(o: Any) = o match {
+  override def equals(o: Any): Boolean = o match {
     case that: StrategyParameters => that.parameters.equals(this.parameters)
     case _ => false
   }
@@ -28,15 +27,15 @@ class StrategyParameters(params: (String, Parameter)*) extends Serializable {
    * @return True only if the key is available in `parameters`
    */
   def has(key: Key): Boolean = parameters.contains(key)
+
   /**
    * @return True only if the key is available in `parameters`
    *         AND it has the expected `Parameter` type
    */
-  def hasWithType(key: Key, companion: ParameterTrait): Boolean =
-    parameters.get(key) match {
-      case Some(p) => (p.companion == companion)
-      case _ => false
-    }
+  def hasWithType(key: Key, companion: ParameterTrait): Boolean = parameters.get(key) match {
+    case Some(p) => p.companion == companion
+    case _ => false
+  }
 
   /**
    * Similar to what a map's `get` would do.
@@ -58,10 +57,9 @@ class StrategyParameters(params: (String, Parameter)*) extends Serializable {
    */
   def get[V: ClassTag](key: Key): V = getOption[V](key) match {
     case Some(v) => v
-    case None => {
+    case None =>
       val desired = implicitly[ClassTag[V]].runtimeClass
-      throw new IndexOutOfBoundsException("Key `" + key + "` with desired type `" + desired + "` was not found.")
-    }
+      throw new IndexOutOfBoundsException(s"Key `$key` with desired type `$desired` was not found.")
   }
 
   /**
@@ -76,7 +74,7 @@ class StrategyParameters(params: (String, Parameter)*) extends Serializable {
       case _ => fallback
     }
 
-  def getOrDefault[V: ClassTag](key: Key, parameterType: ParameterTrait{ type T = V }): V =
+  def getOrDefault[V: ClassTag](key: Key, parameterType: ParameterTrait {type T = V}): V =
     getOrElse(key, parameterType.defaultValue)
 
   override def toString: String = {
@@ -84,13 +82,12 @@ class StrategyParameters(params: (String, Parameter)*) extends Serializable {
       p <- parameters
       key = p._1
       paramType = p._2.name
-      value = p._2.value().toString()
-    } yield key + " (type " + paramType + ") = " + value
+      value = p._2.value().toString
+    } yield key + s" (type $paramType) = $value"
 
     strings.reduce((a, b) => a + '\n' + b)
   }
 }
-
 
 
 /**
@@ -98,7 +95,8 @@ class StrategyParameters(params: (String, Parameter)*) extends Serializable {
  * Strategies can declare required and optional parameters.
  * Each parameter has a "range" of valid values.
  */
-abstract class Parameter(val name: String) extends Serializable { self =>
+abstract class Parameter(val name: String) extends Serializable {
+  self =>
   /** Type of the value this parameter holds */
   type T
 
@@ -111,7 +109,7 @@ abstract class Parameter(val name: String) extends Serializable { self =>
   def value(): T
 
   /** The companion object of this parameter */
-  def companion: ParameterTrait{ type T = self.T}
+  def companion: ParameterTrait {type T = self.T}
 
   /**
    * Whether or not this particular instance has been
@@ -122,19 +120,18 @@ abstract class Parameter(val name: String) extends Serializable { self =>
   override def toString: String = value() + " (type: " + companion.name + ")"
 }
 
-
-
 /**
  * "Static" methods that should be implemented in each concrete
  * parameter's companion object.
  * If the designer of a strategy wishes to change any of the fields
  * in this trait, it is easy to extend it and override the field.
  */
-trait ParameterTrait { self =>
+trait ParameterTrait {
+  self =>
   type T
 
   /** Make a new instance of the associated parameter */
-  def getInstance(v: T): Parameter{ type T = self.T}
+  def getInstance(v: T): Parameter {type T = self.T}
 
   /** Name of this parameter type */
   def name: String = this.getClass.getName
@@ -155,21 +152,23 @@ trait ParameterTrait { self =>
    */
   def defaultValue: T
 
-  override def toString = name
+  override def toString: String = name
 }
-
 
 /**
  * Parameter representing a simple boolean flag (true / false)
  */
 case class BooleanParameter(flag: Boolean) extends Parameter("BooleanFlag") {
   type T = Boolean
-  def companion = BooleanParameter
+
+  def companion: BooleanParameter.type = BooleanParameter
+
   def value(): Boolean = flag
 }
 
 object BooleanParameter extends ParameterTrait {
   type T = Boolean
+
   def getInstance(v: Boolean) = new BooleanParameter(v)
 
   /** Any boolean value is valid */
@@ -186,12 +185,15 @@ object BooleanParameter extends ParameterTrait {
  */
 case class CoefficientParameter(coefficient: Double) extends Parameter("Coefficient") {
   type T = Double
-  def companion = CoefficientParameter
+
+  def companion: CoefficientParameter.type = CoefficientParameter
+
   def value(): Double = coefficient
 }
 
 object CoefficientParameter extends ParameterTrait {
   type T = Double
+
   def getInstance(v: Double) = new CoefficientParameter(v)
 
   /**
@@ -201,6 +203,7 @@ object CoefficientParameter extends ParameterTrait {
 
   /** Iterative grid refinement */
   val nLevels = 4
+
   def validValues: Iterable[Double] = {
     def atResolution(resolution: Double): Stream[Double] = {
       val stream = Stream.range(0, (1.0 / resolution).toInt + 1)
@@ -210,6 +213,7 @@ object CoefficientParameter extends ParameterTrait {
         (resolution == 0.1) || (x % 10) != 0
       }).map(x => x * resolution)
     }
+
     (1 to nLevels).foldRight(Stream.empty[Double])((k, acc) => {
       atResolution(Math.pow(10.0, -k.toDouble)) #::: acc
     })
@@ -219,24 +223,26 @@ object CoefficientParameter extends ParameterTrait {
 }
 
 
-
 /**
  * Parameter representing an integer number greater or equal to zero.
  */
 case class NaturalNumberParameter(natural: Int) extends Parameter("NaturalNumber") {
   type T = Int
-  def companion = NaturalNumberParameter
+
+  def companion: NaturalNumberParameter.type = NaturalNumberParameter
+
   def value(): Int = natural
 }
 
 object NaturalNumberParameter extends ParameterTrait {
   type T = Int
+
   def getInstance(v: Int) = new NaturalNumberParameter(v)
 
   /**
    * Coefficient must lie in { 0, 1, ... }
    */
-  def isValid(v: Int): Boolean = (v >= 0)
+  def isValid(v: Int): Boolean = v >= 0
 
   def validValues: Iterable[Int] = Stream.from(0)
 
@@ -249,12 +255,15 @@ object NaturalNumberParameter extends ParameterTrait {
  */
 case class RealNumberParameter(real: Double) extends Parameter("RealNumber") {
   type T = Double
-  def companion = RealNumberParameter
+
+  def companion: RealNumberParameter.type = RealNumberParameter
+
   def value(): Double = real
 }
 
 object RealNumberParameter extends ParameterTrait {
   type T = Double
+
   def getInstance(v: Double) = new RealNumberParameter(v)
 
   /**
@@ -268,8 +277,6 @@ object RealNumberParameter extends ParameterTrait {
   def defaultValue = 0.0
 }
 
-
-
 /**
  * Parameter representing a duration.
  *
@@ -278,55 +285,64 @@ object RealNumberParameter extends ParameterTrait {
  */
 case class TimeParameter(duration: Long, unit: TimeUnit) extends Parameter("Time") {
   type T = FiniteDuration
+
   def this(duration: Long) = this(duration, MillisecondsUnit)
+
   def this(duration: FiniteDuration) = this(duration.length.toLong, duration.unit)
 
-  def companion = TimeParameter
+  def companion: TimeParameter.type = TimeParameter
+
   def value(): FiniteDuration = FiniteDuration(duration, unit)
 }
 
 object TimeParameter extends ParameterTrait {
+
   import scala.language.postfixOps
 
   type T = FiniteDuration
 
   def getInstance(v: Long) = new TimeParameter(v)
+
   def getInstance(v: Long, u: TimeUnit) = new TimeParameter(v, u)
+
   def getInstance(d: FiniteDuration) = new TimeParameter(d)
 
   /**
    * Duration must be positive or null
    */
-  def isValid(v: Long): Boolean = (v >= 0)
-  def isValid(d: FiniteDuration): Boolean = (d.length >= 0)
+  def isValid(v: Long): Boolean = v >= 0
+
+  def isValid(d: FiniteDuration): Boolean = d.length >= 0
 
   // TODO: user-selected resolution
   def validValues: Iterable[FiniteDuration] =
     Stream.from(1) map { n => n seconds }
 
-  def defaultValue = (0L milliseconds)
+  def defaultValue: FiniteDuration = 0L milliseconds
 }
-
-
 
 /**
  * Parameter representing a pair of currencies to be traded.
  */
 case class CurrencyPairParameter(currencies: (Currency, Currency)) extends Parameter("CurrencyPair") {
   type T = (Currency, Currency)
-  def companion = CurrencyPairParameter
+
+  def companion: CurrencyPairParameter.type = CurrencyPairParameter
+
   def value(): (Currency, Currency) = currencies
 }
 
 object CurrencyPairParameter extends ParameterTrait {
   type T = (Currency, Currency)
+
   def getInstance(v: T) = new CurrencyPairParameter(v)
 
   /**
    * All currency pairs are acceptable as long as they're not twice the same.
+   *
    * @warning Note that (EUR, CHF) is *not* the same pair as (CHF, EUR)
    */
-  def isValid(v: T): Boolean = (v._1 != v._2)
+  def isValid(v: T): Boolean = v._1 != v._2
 
   def validValues: Iterable[T] = {
     val allCurrencies = Currency.supportedCurrencies()
@@ -338,7 +354,7 @@ object CurrencyPairParameter extends ParameterTrait {
     } yield (c1, c2)
   }
 
-  def defaultValue = (Currency.EUR, Currency.CHF)
+  def defaultValue: (Currency, Currency) = (Currency.EUR, Currency.CHF)
 }
 
 
@@ -347,12 +363,15 @@ object CurrencyPairParameter extends ParameterTrait {
  */
 case class WalletParameter(wallet: Wallet.Type) extends Parameter("Wallet") {
   type T = Wallet.Type
-  def companion = WalletParameter
+
+  def companion: WalletParameter.type = WalletParameter
+
   def value(): T = wallet
 }
 
 object WalletParameter extends ParameterTrait {
   type T = Wallet.Type
+
   def getInstance(v: T) = new WalletParameter(v)
 
   /**
@@ -363,21 +382,23 @@ object WalletParameter extends ParameterTrait {
   // TODO: enumeration of valid wallets
   def validValues: Iterable[T] = Seq(defaultValue)
 
-  def defaultValue = Map[Currency, Double]()
+  def defaultValue: Map[Currency, Double] = Map[Currency, Double]()
 }
-
 
 /**
  * Parameter representing rules applied in a certain market.
  */
 case class MarketRulesParameter(rules: MarketRules) extends Parameter("MarketRules") {
   type T = MarketRules
-  def companion = MarketRulesParameter
+
+  def companion: MarketRulesParameter.type = MarketRulesParameter
+
   def value(): MarketRules = rules
 }
 
 object MarketRulesParameter extends ParameterTrait {
   type T = MarketRules
+
   def getInstance(v: T) = new MarketRulesParameter(v)
 
   def isValid(v: T): Boolean = true

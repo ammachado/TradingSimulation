@@ -1,16 +1,15 @@
 package ch.epfl.ts.test.traders
 
-import org.junit.runner.RunWith
 import akka.actor.Props
+import akka.testkit.EventFilter
+import ch.epfl.ts.data.OHLC
 import ch.epfl.ts.indicators.RsiIndicator
 import ch.epfl.ts.test.ActorTestSuite
-import ch.epfl.ts.data.Quote
-import org.scalatest.junit.JUnitRunner
-import ch.epfl.ts.data.OHLC
-import akka.testkit.EventFilter
-import scala.language.postfixOps
-import scala.concurrent.duration.FiniteDuration
+import org.junit.runner.RunWith
+import org.scalatestplus.junit.JUnitRunner
+
 import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
 class RsiIndicatorTest extends ActorTestSuite("RsiIndicator") {

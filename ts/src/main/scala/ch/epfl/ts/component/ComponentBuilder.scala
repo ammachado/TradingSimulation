@@ -1,38 +1,27 @@
 package ch.epfl.ts.component
 
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.concurrent.blocking
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
-import scala.language.existentials
-import scala.language.postfixOps
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
-import akka.actor.Props
-import akka.actor.actorRef2Scala
+import akka.actor.{ActorRef, ActorSystem, Props, actorRef2Scala}
 import akka.pattern.ask
 import akka.util.Timeout
-import ch.epfl.ts.component.utils.ParentActor
-import ch.epfl.ts.component.utils.Reaper
-import ch.epfl.ts.component.utils.StartKilling
+import ch.epfl.ts.brokers.Broker
+import ch.epfl.ts.component.fetch.FetchingComponent
+import ch.epfl.ts.component.utils.{ParentActor, Reaper, StartKilling, Timekeeper}
 import ch.epfl.ts.engine.MarketSimulator
 import ch.epfl.ts.evaluation.Evaluator
 import ch.epfl.ts.traders.Trader
-import ch.epfl.ts.component.fetch.FetchingComponent
-import ch.epfl.ts.brokers.Broker
-import ch.epfl.ts.component.utils.Timekeeper
+import com.typesafe.config.{Config, ConfigFactory}
+
+import scala.concurrent.{Await, Future, Promise, blocking}
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.language.{existentials, postfixOps}
+import scala.util.{Failure, Success}
 
 case object StartSignal
 case object StopSignal
 case class ComponentRegistration(ar: ActorRef, ct: Class[_], name: String)
 
 final class ComponentBuilder(val system: ActorSystem) {
-  /** Alternative construcors */
+  /** Alternative constructors */
   def this() {
     this(ActorSystem(ConfigFactory.load().getString("akka.systemName"), ConfigFactory.load()))
   }
@@ -47,8 +36,8 @@ final class ComponentBuilder(val system: ActorSystem) {
 
 
   type ComponentProps = akka.actor.Props
-  var graph = Map[ComponentRef, List[(ComponentRef, Class[_])]]()
-  var instances = List[ComponentRef]()
+  var graph: Map[ComponentRef, List[(ComponentRef, Class[_])]] = Map[ComponentRef, List[(ComponentRef, Class[_])]]()
+  var instances: List[ComponentRef] = List[ComponentRef]()
 
   /** Responsible for sending `PoisonPill`s when we want to terminate the system gracefully */
   private val reaper = system.actorOf(Props(classOf[Reaper]), "Reaper")
@@ -90,20 +79,20 @@ final class ComponentBuilder(val system: ActorSystem) {
     src.ar ! ComponentRegistration(dest.ar, data, dest.name)
   }
 
-  def add(src: ComponentRef, dest: ComponentRef) = (src, dest, classOf[Any])
+  def add(src: ComponentRef, dest: ComponentRef): (ComponentRef, ComponentRef, Class[Any]) = (src, dest, classOf[Any])
 
-  def start = instances.map(cr => {
+  def start(): List[Unit] = instances.map(cr => {
     cr.ar ! StartSignal
-    //println("Sending start Signal to " + cr.ar)
+    //println(s"Sending start Signal to ${cr.ar}")
   })
 
   /**
    * Send a `StopSignal` to all managed components, giving them the opportunity
    * to run some cleanup.
    */
-  def stop = instances.map(cr => {
+  def stop: Seq[Unit] = instances.map(cr => {
     cr.ar ! StopSignal
-    //println("Sending stop Signal to " + cr.ar)
+    //println(s"Sending stop Signal to ${cr.ar}")
   })
 
   /**
@@ -112,14 +101,14 @@ final class ComponentBuilder(val system: ActorSystem) {
    * are automatically created under an empty root actor corresponding to their class.
    * This allows us to query the actor hierarchy easily for given types.
    * @warning Current implementation is blocking
-   * @TODO Any way to make this non-blocking?
+   * @todo Any way to make this non-blocking?
    */
-  def createRef(props: ComponentProps, name: String) = blocking {
+  def createRef(props: ComponentProps, name: String): ComponentRef = blocking {
     // Determine the root actor to use for this class
     val root = getRootForClass(props.actorClass())
 
     // Ask the relevant root actor to make an instance for us
-    implicit val timeout = new Timeout(1 second)
+    implicit val timeout: Timeout = new Timeout(1 second)
     val future = (root ? ParentActor.Create(props, name)).mapTo[ParentActor.Done]
     val ref = Await.result(future, timeout.duration).ref
 
@@ -143,13 +132,16 @@ final class ComponentBuilder(val system: ActorSystem) {
     // This allows the user of this function to be notified when shutdown is complete
     val externalPromise = Promise[Unit]()
 
-    implicit val tt = new Timeout(timeout)
-    val p: Future[Any] = (reaper ? StartKilling(instances.map(_.ar)))
+    implicit val tt: Timeout = new Timeout(timeout)
+    val p: Future[Any] = reaper ? StartKilling(instances.map(_.ar))
 
-    p.onSuccess({ case _ =>
-      instances = List[ComponentRef]()
-      externalPromise.success(Unit)
-    })
+    p.onComplete {
+      case Success(_) =>
+        instances = List[ComponentRef]()
+        externalPromise.success(Unit)
+      case Failure(exception) =>
+        externalPromise.failure(exception)
+    }
 
     externalPromise.future
   }

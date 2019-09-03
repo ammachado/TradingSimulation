@@ -15,15 +15,16 @@ class TimeCounter extends Component {
   var initSendingTime: Long = 0L
   var ordersCount = 0
 
-  def receiver = {
-    case StartSending(o) => {
+  def receiver: PartialFunction[Any, Unit] = {
+    case StartSending(o) =>
       ordersCount = o
-      initSendingTime = System.currentTimeMillis(); println("TimeCounter: feeding " + o + " orders started.")
-    }
-    case FinishedProcessingOrders(aSize, bSize) => {
-      println("TimeCounter: processed " + ordersCount + " orders in " + (System.currentTimeMillis() - initSendingTime) + " ms.")
-      println("TimeCounter: askOrdersBook size = " + aSize + ", bidOrdersBook size = " + bSize)
-    }
+      initSendingTime = System.currentTimeMillis()
+      println("TimeCounter: feeding $o orders started.")
+
+    case FinishedProcessingOrders(aSize, bSize) =>
+      println("TimeCounter: processed $ordersCount orders in ${System.currentTimeMillis() - initSendingTime} ms.")
+      println("TimeCounter: askOrdersBook size = $aSize, bidOrdersBook size = $bSize")
+
     case _ =>
   }
 }

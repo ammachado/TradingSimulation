@@ -31,14 +31,15 @@ class Timekeeper(val parent: ActorRef, val timeBase: Long, val period: FiniteDur
   private val timeOffset: Long = System.currentTimeMillis()
   
   private val timer = new Timer()
+
   private class SendTheTime extends java.util.TimerTask {
     def run() {
       val current = timeBase + (System.currentTimeMillis() - timeOffset)
       parent ! TheTimeIs(current)
     }
   }
+
   timer.scheduleAtFixedRate(new SendTheTime, 0L, period.toMillis)
   
-  def receive = PartialFunction.empty
-  
+  def receive: PartialFunction[Any, Nothing] = PartialFunction.empty
 }

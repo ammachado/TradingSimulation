@@ -15,13 +15,11 @@ import scala.reflect.ClassTag
  */
 object BtceTransactionFlowTesterWithStorage {
   def main(args: Array[String]): Unit = {
-    implicit val builder = new ComponentBuilder("DataSourceSystem")
+    implicit val builder: ComponentBuilder = new ComponentBuilder("DataSourceSystem")
 
     // Initialize the Interface to DB
     val btceXactPersit = new TransactionPersistor("btce-transaction-db-batch")
-    btceXactPersit.init()
     val bitstampXactPersit = new TransactionPersistor("bitstamp-transaction-db-batch")
-    bitstampXactPersit.init()
 
     // Instantiate a Transaction etcher for BTC-e and Bitstamp
     val btceMarketId = MarketNames.BTCE_ID

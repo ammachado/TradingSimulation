@@ -1,28 +1,19 @@
 package ch.epfl.ts.test.component
 
-import akka.actor.{ActorRef, Props, ActorSystem}
-import akka.testkit.{EventFilter, TestKit}
-import ch.epfl.ts.component.{StartSignal}
-import ch.epfl.ts.brokers.StandardBroker
+import akka.actor.{ActorRef, Props}
+import akka.testkit.EventFilter
+import ch.epfl.ts.component.StartSignal
+import ch.epfl.ts.component.fetch.MarketNames
+import ch.epfl.ts.data.{Currency, Quote, StrategyParameters, WalletParameter}
+import ch.epfl.ts.engine.{ForexMarketRules, GetWalletFunds}
+import ch.epfl.ts.test.{ActorTestSuite, FxMarketWrapped, SimpleBrokerWrapped}
 import ch.epfl.ts.traders.SimpleTraderWithBroker
-import org.scalatest.WordSpecLike
+import org.junit.runner.RunWith
+import org.scalatestplus.junit.JUnitRunner
+
 import scala.concurrent.duration._
-import ch.epfl.ts.data.Currency
-import com.typesafe.config.ConfigFactory
 import scala.language.postfixOps
 import scala.reflect.ClassTag
-import ch.epfl.ts.engine.{ForexMarketRules, MarketFXSimulator, GetWalletFunds}
-import ch.epfl.ts.component.fetch.MarketNames
-import akka.util.Timeout
-import ch.epfl.ts.data.Quote
-import ch.epfl.ts.data.StrategyParameters
-import ch.epfl.ts.data.WalletParameter
-import ch.epfl.ts.test.TestHelpers
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import ch.epfl.ts.test.ActorTestSuite
-import ch.epfl.ts.test.FxMarketWrapped
-import ch.epfl.ts.test.SimpleBrokerWrapped
 
 @RunWith(classOf[JUnitRunner])
 class BrokerInteractionTest

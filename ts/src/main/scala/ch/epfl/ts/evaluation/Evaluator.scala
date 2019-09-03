@@ -1,18 +1,15 @@
 package ch.epfl.ts.evaluation
 
-import scala.concurrent.Future
-import scala.language.postfixOps
-import scala.collection.mutable.{Map => MMap, MutableList => MList}
-import scala.concurrent.duration.{DurationInt, DurationLong}
-import scala.concurrent.duration.FiniteDuration
-
-import akka.actor.ActorLogging
-import akka.actor.{ActorRef, Cancellable}
-import akka.pattern.{ ask, pipe }
+import akka.actor.{ActorLogging, ActorRef, Cancellable}
+import akka.pattern.{ask, pipe}
 import akka.util.Timeout
-import ch.epfl.ts.engine.{Wallet, TraderIdentity, GetTraderParameters}
-import ch.epfl.ts.component.{ComponentRegistration, Component, ComponentRef}
+import ch.epfl.ts.component.{Component, ComponentRegistration}
 import ch.epfl.ts.data._
+import ch.epfl.ts.engine.{GetTraderParameters, TraderIdentity, Wallet}
+
+import scala.collection.mutable.{Map => MMap, MutableList => MList}
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.language.postfixOps
 
 /**
  * Represents metrics of a strategy
@@ -39,7 +36,7 @@ case class EvaluationReport(traderId: Long, traderName: String, wallet: Map[Curr
     *   list.sortWith(_.sharpeRatio > _.sharpeRatio)
     *
     */
-  def compare(that: EvaluationReport) = {
+  def compare(that: EvaluationReport): Int = {
     val delta = this.totalReturns - that.totalReturns
     if (delta > 0) 1 else if (delta < 0) -1 else 0
   }
@@ -84,7 +81,7 @@ class Evaluator(trader: ActorRef, traderId: Long, traderName: String, currency: 
   /**
    * Redirects out-going connections to the trader
    */
-  override def connect(ar: ActorRef, ct: Class[_], name: String) = {
+  override def connect(ar: ActorRef, ct: Class[_], name: String): Unit = {
     if (ct.equals(classOf[EvaluationReport]))
       super.connect(ar, ct, name)
     else
@@ -94,23 +91,21 @@ class Evaluator(trader: ActorRef, traderId: Long, traderName: String, currency: 
   /**
    * Handles interested messages and forward all messages to the trader
    */
-  override def receiver = {
-    case t: Transaction if t.buyerId == traderId =>  // buy
-      buy(t)
-    case t: Transaction if t.sellerId == traderId =>  // sell
-      sell(t)
+  override def receiver: PartialFunction[Any, Unit] = {
+    case t: Transaction if t.buyerId == traderId =>  buy(t)
 
-    case t: Transaction => // Nothing to do
+    case t: Transaction if t.sellerId == traderId => sell(t)
+
+    case _: Transaction => // Nothing to do
        // Let's not forward unrelated transactions to our poor busy Trader
 
     case q: Quote =>
       updatePrice(q)
       trader forward q
 
-    case 'Report =>
-      if (canReport) report
-    case _: EndOfFetching =>
-      if (canReport) report
+    case 'Report => reportIfPossible()
+
+    case _: EndOfFetching => reportIfPossible()
 
     case TraderIdentity(_, _, companion, parameters) if initialWallet.isEmpty =>
       initialWallet = parameters.get[Wallet.Type](companion.INITIAL_FUNDS)
@@ -118,7 +113,7 @@ class Evaluator(trader: ActorRef, traderId: Long, traderName: String, currency: 
         wallet += currency -> (wallet.getOrElse(currency, 0.0) + amount)
       }
       initialValueReceived = true
-      if(canReport) {
+      if (canReport) {
         lastValue = Some(valueOfWallet(wallet.toMap))
       }
 
@@ -161,7 +156,7 @@ class Evaluator(trader: ActorRef, traderId: Long, traderName: String, currency: 
   /**
    * Updates the price table
    */
-  private def updatePrice(q: Quote) = {
+  private def updatePrice(q: Quote): Unit = {
     val Quote(_, _, whatC, withC, bid, ask) = q
     priceTable.put(whatC -> withC, bid)
     priceTable.put(withC -> whatC, 1/ask)
@@ -174,7 +169,7 @@ class Evaluator(trader: ActorRef, traderId: Long, traderName: String, currency: 
   /**
    * Computes volatility, which is the variance of returns
    */
-  private def computeVolatility = {
+  private def computeVolatility: Double = {
     val mean = (returnsList :\ 0.0)(_ + _) / returnsList.length
     (returnsList :\ 0.0) { (r, acc) => (r - mean) * (r - mean) + acc } / returnsList.length
   }
@@ -182,7 +177,7 @@ class Evaluator(trader: ActorRef, traderId: Long, traderName: String, currency: 
   /**
    * Updates the statistics
    */
-  private def report: Unit = {
+  private def report(): Unit = {
     val initial = valueOfWallet(initialWallet)
     val curVal = valueOfWallet(wallet.toMap)
 
@@ -211,28 +206,34 @@ class Evaluator(trader: ActorRef, traderId: Long, traderName: String, currency: 
    *         and we have received the initial funds from the trader we are evaluating.
    * */
   private def canReport: Boolean = {
-    if (priceTable.size == 0 || !initialValueReceived || lastValue.isEmpty) false
+    if (priceTable.isEmpty || !initialValueReceived || lastValue.isEmpty) false
     else wallet.keys.forall(c => c == currency || priceTable.contains(c -> currency))
   }
 
   /**
    * Starts the scheduler and trader
    */
-  override def start = {
+  override def start() = {
     schedule = context.system.scheduler.schedule(2 seconds, period, self, 'Report)
 
     // Query trader for the initial wallet
-    implicit val timeout = Timeout(2 seconds)
+    implicit val timeout: Timeout = Timeout(2 seconds)
     (trader ? GetTraderParameters).mapTo[TraderIdentity] pipeTo self
  }
 
   /**
    * Stops the scheduler and trader
    */
-  override def stop = {
+  override def stop() = {
     schedule.cancel()
 
     // Last report
-    if (canReport) report
+    reportIfPossible()
+  }
+
+  private def reportIfPossible(): Unit = {
+    if (canReport) {
+      report()
+    }
   }
 }

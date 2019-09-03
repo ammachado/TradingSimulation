@@ -1,25 +1,14 @@
 package ch.epfl.ts.traders
 
+import akka.actor.{Deploy, Props}
+import ch.epfl.ts.component.{Component, ComponentBuilder, ComponentRef}
+import ch.epfl.ts.data._
+import ch.epfl.ts.engine.{FundWallet, GetTraderParameters, GetWalletFunds, TraderIdentity}
+
+import scala.collection.immutable
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.language.postfixOps
-import scala.reflect
 import scala.reflect.ClassTag
-import scala.concurrent.duration.DurationInt
-import akka.actor.Props
-import akka.actor.Deploy
-import ch.epfl.ts.component.Component
-import ch.epfl.ts.component.ComponentBuilder
-import ch.epfl.ts.component.ComponentRef
-import ch.epfl.ts.data.ParameterTrait
-import ch.epfl.ts.data.StrategyParameters
-import ch.epfl.ts.engine.GetWalletFunds
-import ch.epfl.ts.engine.FundWallet
-import ch.epfl.ts.data.Register
-import ch.epfl.ts.data.Currency
-import ch.epfl.ts.data.WalletParameter
-import akka.actor.ActorLogging
-import ch.epfl.ts.engine.GetTraderParameters
-import ch.epfl.ts.engine.TraderIdentity
-import ch.epfl.ts.data.TheTimeIs
 
 case class RequiredParameterMissingException(message: String) extends RuntimeException(message)
 
@@ -46,10 +35,10 @@ abstract class Trader(val uid: Long, marketIds: List[Long], val parameters: Stra
   // TODO: warn if some parameters are unused
   
   /** Default timeout to use when Asking another component asynchronously */
-  val askTimeout = 500 milliseconds
+  val askTimeout: FiniteDuration = 500 milliseconds
   var currentTimeMillis: Long = 0L
   
-  val initialFunds = parameters.get[Map[Currency, Double]]("InitialFunds")
+  val initialFunds: Map[Currency, Double] = parameters.get[Map[Currency, Double]]("InitialFunds")
   
   /**
    * @note We *do not* catch everything, we leave this partial function undefined
@@ -58,24 +47,18 @@ abstract class Trader(val uid: Long, marketIds: List[Long], val parameters: Stra
    */
   // TODO: move all common Trader behaviors to this receiver
   final def traderReceive: PartialFunction[Any, Unit] = {
-    case GetTraderParameters => {
-      sender ! TraderIdentity(self.path.name, uid, companion, parameters)
-    }
-    
-    case TheTimeIs(t) => {
-      currentTimeMillis = t
-    }
+    case GetTraderParameters => sender ! TraderIdentity(self.path.name, uid, companion, parameters)
+    case TheTimeIs(t) => currentTimeMillis = t
   }
   
-  override def receive = (traderReceive orElse super.receive)
-  
-  
+  override def receive: PartialFunction[Any, Unit] = traderReceive orElse super.receive
+
   /**
    * Initialization common to all trading strategies:
    *   - Register to the broker
    *   - Put initial funds into our wallet
    */
-  final override def start = {
+  final override def start: Unit = {
     // Register with the broker we are connected to
     send(Register(uid))
     // Fund the wallet using the provided currency
@@ -88,20 +71,20 @@ abstract class Trader(val uid: Long, marketIds: List[Long], val parameters: Stra
     send(GetWalletFunds(uid,this.self))
     
     // Strategy-specific initialization
-    init
+    init()
   }
   
   /**
    * Strategies wishing to perform some initialization may
    * override this function.
    */
-  def init = {}
+  def init(): Unit = {}
 }
 
 /**
  * Trait to be extended by the Trader companion objects.
  * In order for the strategy to be automatically testable, the companion object
- * declares the stragey's parameters (required and optional).
+ * declares the strategy's parameters (required and optional).
  * 
  * The user should not have to specify the parameter names as strings, but rather
  * be able to use the keys exposed by the strategy's companion object.
@@ -114,13 +97,14 @@ trait TraderCompanion extends Serializable {
    * concrete Trader class they accompany
    */
   type ConcreteTrader <: Trader
+
   /**
    * Needed to overcome type erasure.
    * @example `override protected val concreteTraderTag = scala.reflect.classTag[MadTrader]`
    */
   protected implicit def concreteTraderTag: ClassTag[ConcreteTrader]
   
-  override def toString = concreteTraderTag.runtimeClass.getSimpleName
+  override def toString: Key = concreteTraderTag.runtimeClass.getSimpleName
   
   /**
    * Check that the given parameters are valid with respect to what is declared by this strategy,
@@ -143,9 +127,9 @@ trait TraderCompanion extends Serializable {
   
   /**
    * Provide props in order to build a new instance of the concrete trading strategy using these parameters.
-   * Can be overriden by concrete TraderCompanion, but the generic implementation should be sufficient.
+   * Can be overridden by concrete TraderCompanion, but the generic implementation should be sufficient.
    */
-  def getProps(uid: Long, marketIds : List[Long], parameters: StrategyParameters) = {
+  def getProps(uid: Long, marketIds : List[Long], parameters: StrategyParameters): Props = {
     Props(concreteTraderTag.runtimeClass, uid, marketIds, parameters)
   }
   
@@ -155,12 +139,11 @@ trait TraderCompanion extends Serializable {
    * This is a parameter required for all trading strategies
    */
   val INITIAL_FUNDS = "InitialFunds"
-  
-  
+
   /**
    * All parameters required to instantiate this strategy.
    */
-  final def requiredParameters = Map[Key, ParameterTrait](
+  final def requiredParameters: Map[Key, ParameterTrait] = Map[Key, ParameterTrait](
     INITIAL_FUNDS -> WalletParameter
   ) ++ strategyRequiredParameters
   
@@ -185,10 +168,10 @@ trait TraderCompanion extends Serializable {
    * have been provided in `parameters`.
    * Otherwise, throw an exception.
    */
-  def verifyParameters(parameters: StrategyParameters) = for {
+  def verifyParameters(parameters: StrategyParameters): immutable.Iterable[Nothing] = for {
     p <- requiredParameters
     key = p._1
     theType = p._2
     if !parameters.hasWithType(key, theType)
-  } yield throw new RequiredParameterMissingException("Trading strategy requires parameter " + key + " with type " + theType)
+  } yield throw RequiredParameterMissingException(s"Trading strategy requires parameter $key with type $theType")
 }

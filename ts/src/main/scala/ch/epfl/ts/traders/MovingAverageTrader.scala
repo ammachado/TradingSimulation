@@ -1,49 +1,25 @@
 package ch.epfl.ts.traders
 
-import scala.collection.mutable.{HashMap => MHashMap}
-import scala.concurrent.duration.FiniteDuration
-import scala.math.abs
-import scala.math.floor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.actorRef2Scala
+import akka.actor.{ActorRef, Props, actorRef2Scala}
 import akka.pattern.ask
 import akka.util.Timeout
-import ch.epfl.ts.data.BooleanParameter
-import ch.epfl.ts.data.CoefficientParameter
-import ch.epfl.ts.data.ConfirmRegistration
-import ch.epfl.ts.data.Currency
-import ch.epfl.ts.data.CurrencyPairParameter
-import ch.epfl.ts.data.MarketAskOrder
-import ch.epfl.ts.data.MarketBidOrder
-import ch.epfl.ts.data.MarketOrder
-import ch.epfl.ts.data.MarketShortOrder
-import ch.epfl.ts.data.NaturalNumberParameter
-import ch.epfl.ts.data.OHLC
-import ch.epfl.ts.data.Order
-import ch.epfl.ts.data.Quote
-import ch.epfl.ts.data.RealNumberParameter
-import ch.epfl.ts.data.StrategyParameters
-import ch.epfl.ts.data.TimeParameter
-import ch.epfl.ts.engine.AcceptedOrder
-import ch.epfl.ts.engine.ExecutedAskOrder
-import ch.epfl.ts.engine.ExecutedBidOrder
-import ch.epfl.ts.engine.GetWalletFunds
-import ch.epfl.ts.engine.RejectedOrder
-import ch.epfl.ts.engine.WalletFunds
-import ch.epfl.ts.indicators.EmaIndicator
-import ch.epfl.ts.indicators.MovingAverage
-import ch.epfl.ts.indicators.OhlcIndicator
-import ch.epfl.ts.engine.WalletConfirm
-import ch.epfl.ts.engine.WalletFunds
+import ch.epfl.ts
+import ch.epfl.ts.data._
+import ch.epfl.ts.engine._
+import ch.epfl.ts.indicators.{EmaIndicator, MovingAverage, OhlcIndicator}
+import ch.epfl.ts.traders
+
+import scala.collection.mutable.{HashMap => MHashMap}
+import scala.concurrent.duration.FiniteDuration
+import scala.math.{abs, floor}
+import scala.reflect.ClassTag
 
 /**
  * MovingAverageTrader companion object
  */
 object MovingAverageTrader extends TraderCompanion {
   type ConcreteTrader = MovingAverageTrader
-  override protected val concreteTraderTag = scala.reflect.classTag[MovingAverageTrader]
+  override protected val concreteTraderTag: ClassTag[MovingAverageTrader] = scala.reflect.classTag[MovingAverageTrader]
 
   /** Currency pair to trade */
   val SYMBOL = "Symbol"
@@ -60,14 +36,14 @@ object MovingAverageTrader extends TraderCompanion {
   /** Maximum percentage of wallet that we allow to short */
   val SHORT_PERCENT = "ShortPercent"
 
-  override def strategyRequiredParameters = Map(
+  override def strategyRequiredParameters: Map[traders.MovingAverageTrader.Key, ParameterTrait] = Map(
     SYMBOL -> CurrencyPairParameter,
     OHLC_PERIOD -> TimeParameter,
     SHORT_PERIODS -> NaturalNumberParameter,
     LONG_PERIODS -> NaturalNumberParameter,
     TOLERANCE -> RealNumberParameter)
 
-  override def optionalParameters = Map(
+  override def optionalParameters: Map[ts.traders.MovingAverageTrader.Key, ParameterTrait] = Map(
     WITH_SHORT -> BooleanParameter,
     SHORT_PERCENT -> CoefficientParameter)
 }
@@ -80,30 +56,30 @@ class MovingAverageTrader(uid: Long, marketIds: List[Long], parameters: Strategy
 
   import context.dispatcher
 
-  override def companion = MovingAverageTrader
+  override def companion: MovingAverageTrader.type = MovingAverageTrader
 
-  val symbol = parameters.get[(Currency, Currency)](MovingAverageTrader.SYMBOL)
+  val symbol: (Currency, Currency) = parameters.get[(Currency, Currency)](MovingAverageTrader.SYMBOL)
   val (whatC, withC) = symbol
 
-  val ohlcPeriod = parameters.get[FiniteDuration](MovingAverageTrader.OHLC_PERIOD)
-  val shortPeriods = parameters.get[Int](MovingAverageTrader.SHORT_PERIODS)
-  val longPeriods = parameters.get[Int](MovingAverageTrader.LONG_PERIODS)
-  val tolerance = parameters.get[Double](MovingAverageTrader.TOLERANCE)
-  val withShort = parameters.getOrElse[Boolean](MovingAverageTrader.WITH_SHORT, false)
+  val ohlcPeriod: FiniteDuration = parameters.get[FiniteDuration](MovingAverageTrader.OHLC_PERIOD)
+  val shortPeriods: Int = parameters.get[Int](MovingAverageTrader.SHORT_PERIODS)
+  val longPeriods: Int = parameters.get[Int](MovingAverageTrader.LONG_PERIODS)
+  val tolerance: Double = parameters.get[Double](MovingAverageTrader.TOLERANCE)
+  val withShort: Boolean = parameters.getOrElse[Boolean](MovingAverageTrader.WITH_SHORT, false)
 
-  val marketId = marketIds(0)
-  val shortPercent = parameters.getOrElse[Double](MovingAverageTrader.SHORT_PERCENT, 0.0)
+  val marketId: Long = marketIds.head
+  val shortPercent: Double = parameters.getOrElse[Double](MovingAverageTrader.SHORT_PERCENT, 0.0)
 
   /**
    * Indicators needed by the Moving Average Trader
    */
-  val ohlcIndicator = context.actorOf(Props(classOf[OhlcIndicator], marketId, symbol, ohlcPeriod))
-  val movingAverageIndicator = context.actorOf(Props(classOf[EmaIndicator], List(shortPeriods, longPeriods)))
+  val ohlcIndicator: ActorRef = context.actorOf(Props(classOf[OhlcIndicator], marketId, symbol, ohlcPeriod))
+  val movingAverageIndicator: ActorRef = context.actorOf(Props(classOf[EmaIndicator], List(shortPeriods, longPeriods)))
 
   /**
    * Broker information
    */
-  var broker: ActorRef = null
+  var broker: ActorRef = _
   var registered = false
 
   /**
@@ -118,59 +94,55 @@ class MovingAverageTrader(uid: Long, marketIds: List[Long], parameters: Strategy
   var holdings: Double = 0.0
   var shortings: Double = 0.0
 
-  var tradingPrices = MHashMap[(Currency, Currency), (Double, Double)]()
+  var tradingPrices: MHashMap[(Currency, Currency), (Double, Double)] = MHashMap[(Currency, Currency), (Double, Double)]()
 
-  override def receiver = {
+  override def receiver: PartialFunction[Any, Unit] = {
 
     /**
      * When receive a quote update bid and ask
      * and forward to ohlcIndicator
      */
-    case q: Quote => {
+    case q: Quote =>
       currentTimeMillis = q.timestamp
       tradingPrices((q.whatC, q.withC)) = (q.bid, q.ask)
       ohlcIndicator ! q
-    }
 
-    case ohlc: OHLC => {
-      movingAverageIndicator ! ohlc
-    }
+    case ohlc: OHLC => movingAverageIndicator ! ohlc
 
-    case ConfirmRegistration => {
+    case ConfirmRegistration =>
       broker = sender()
       registered = true
       log.debug("MATrader: Broker confirmed")
-    }
 
     case ma: MovingAverage if registered => {
       ma.value.get(shortPeriods) match {
         case Some(x) => currentShort = x
-        case None    => println("Error: Missing indicator with period " + shortPeriods)
+        case None => println("Error: Missing indicator with period " + shortPeriods)
       }
       ma.value.get(longPeriods) match {
         case Some(x) => currentLong = x
-        case None    => println("Error: Missing indicator with period " + longPeriods)
+        case None => println("Error: Missing indicator with period " + longPeriods)
       }
-      decideOrder
+      decideOrder()
     }
 
     // Order has been executed on the market = CLOSE Positions
-    case eb: ExecutedBidOrder    => log.debug("executed bid volume: " + eb.volume)
-    case ea: ExecutedAskOrder    => log.debug("executed ask volume: " + ea.volume)
+    case eb: ExecutedBidOrder => log.debug("executed bid volume: " + eb.volume)
+    case ea: ExecutedAskOrder => log.debug("executed ask volume: " + ea.volume)
 
     case _: WalletFunds =>
     case _: WalletConfirm =>
-    
+
     case whatever if !registered => println("MATrader: received while not registered [check that you have a Broker]: " + whatever)
-    case whatever                => println("MATrader: received unknown : " + whatever)
+    case whatever => println("MATrader: received unknown : " + whatever)
   }
 
-  def decideOrder = {
-    implicit val timeout = new Timeout(askTimeout)
+  def decideOrder(): Unit = {
+    implicit val timeout: Timeout = new Timeout(askTimeout)
 
     val future = (broker ? GetWalletFunds(uid, this.self)).mapTo[WalletFunds]
-    future onSuccess {
-      case WalletFunds(id, funds: Map[Currency, Double]) => {
+    future.foreach {
+      case WalletFunds(_, funds) => {
         var volume = 0.0
         var holdings = 0.0
         var shortings = 0.0
@@ -200,16 +172,11 @@ class MovingAverageTrader(uid: Long, marketIds: List[Long], parameters: Strategy
         }
       }
     }
-    future onFailure {
-      case p => {
-        log.debug("MA Trader : Wallet command failed : " + p)
-        stop
-      }
-    }
 
+    future.failed.foreach(p => log.debug("MA Trader : Wallet command failed : " + p))
   }
 
-  def decideOrderWithoutShort(volume: Double, holdings: Double) = {
+  def decideOrderWithoutShort(volume: Double, holdings: Double): Unit = {
     // BUY signal
     if (currentShort > currentLong * (1 + tolerance) && holdings == 0.0) {
       placeOrder(MarketBidOrder(oid, uid, currentTimeMillis, whatC, withC, volume, -1))
@@ -221,7 +188,7 @@ class MovingAverageTrader(uid: Long, marketIds: List[Long], parameters: Strategy
     }
   }
 
-  def decideOrderWithShort(volume: Double, holdings: Double, shortings: Double, toShortAmount: Double) = {
+  def decideOrderWithShort(volume: Double, holdings: Double, shortings: Double, toShortAmount: Double): Unit = {
     // BUY signal
     if (currentShort > currentLong) {
       if (shortings > 0.0) {
@@ -252,29 +219,22 @@ class MovingAverageTrader(uid: Long, marketIds: List[Long], parameters: Strategy
     }
   }
 
-  def placeOrder(order: MarketOrder) = {
+  def placeOrder(order: MarketOrder): Unit = {
     log.debug("An order is placed")
-    implicit val timeout = new Timeout(askTimeout)
+    implicit val timeout: Timeout = new Timeout(askTimeout)
     oid += 1
     val future = (broker ? order).mapTo[Order]
-    future onSuccess {
+    future.foreach {
       // Transaction has been accepted by the broker (but may not be executed : e.g. limit orders) = OPEN Positions
       case ao: AcceptedOrder => log.debug("Accepted order costCurrency: " + order.costCurrency() + " volume: " + ao.volume)
-      case _: RejectedOrder => {
-        log.debug("MATrader: order failed")
-      }
-      case _ => {
-        log.debug("MATrader: unknown order response")
-      }
+      case _: RejectedOrder => log.debug("MATrader: order failed")
+      case _ => log.debug("MATrader: unknown order response")
     }
-    future onFailure {
-      case p => {
-        log.debug("Wallet command failed: " + p)
-      }
-    }
+
+    future.failed.foreach(p => log.debug(s"Wallet command failed: $p"))
   }
 
-  override def init = {
+  override def init: Unit = {
     log.debug("MovingAverageTrader received startSignal")
   }
 }

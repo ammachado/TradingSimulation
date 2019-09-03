@@ -15,11 +15,10 @@ import scala.reflect.ClassTag
  */
 object ReplayFlowTesterFromStorage {
   def main(args: Array[String]): Unit = {
-    implicit val builder = new ComponentBuilder("ReplayFlowTesterSystem")
+    implicit val builder: ComponentBuilder = new ComponentBuilder("ReplayFlowTesterSystem")
 
     // Initialize the Interface to DB
     val btceXactPersit = new TransactionPersistor("btce-transaction-db")
-    btceXactPersit.init()
 
     // Configuration object for Replay
     val replayConf = new ReplayConfig(1418737788400L, 0.01)

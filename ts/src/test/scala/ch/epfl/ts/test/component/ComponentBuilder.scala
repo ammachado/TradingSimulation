@@ -1,25 +1,20 @@
 package ch.epfl.ts.test.component
 
+import akka.actor.Props
+import ch.epfl.ts.component.ComponentRef
+import ch.epfl.ts.component.fetch.{PullFetchComponent, TrueFxFetcher}
+import ch.epfl.ts.component.utils.Printer
+import ch.epfl.ts.data.{Currency, Quote, StrategyParameters, WalletParameter}
+import ch.epfl.ts.evaluation.Evaluator
+import ch.epfl.ts.test.ActorTestSuite
+import ch.epfl.ts.traders.SimpleTraderWithBroker
+import org.junit.runner.RunWith
+import org.scalatestplus.junit.JUnitRunner
+
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.reflect.ClassTag
-import org.scalatest.junit.JUnitRunner
-import org.junit.runner.RunWith
-import akka.actor.Props
-import ch.epfl.ts.component.fetch.PullFetchComponent
-import ch.epfl.ts.component.fetch.TrueFxFetcher
-import ch.epfl.ts.component.utils.Printer
-import ch.epfl.ts.data.Currency
-import ch.epfl.ts.data.Quote
-import ch.epfl.ts.data.StrategyParameters
-import ch.epfl.ts.data.WalletParameter
-import ch.epfl.ts.evaluation.Evaluator
-import ch.epfl.ts.test.ActorTestSuite
-import ch.epfl.ts.traders.SimpleTraderWithBroker
-import ch.epfl.ts.component.ComponentRef
-import ch.epfl.ts.component.fetch.FetchingComponent
-import ch.epfl.ts.component.fetch.FetchingComponent
 
 @RunWith(classOf[JUnitRunner])
 class ComponentBuilderTestSuite extends ActorTestSuite("ComponentBuilderTestSuite") {

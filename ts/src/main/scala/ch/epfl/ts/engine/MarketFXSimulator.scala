@@ -11,15 +11,18 @@ import ch.epfl.ts.data.LimitAskOrder
 import ch.epfl.ts.engine.rules.FxMarketRulesWrapper
 
 class MarketFXSimulator(marketId: Long, val rulesWrapper: FxMarketRulesWrapper = new FxMarketRulesWrapper())
-    extends MarketSimulator(marketId, rulesWrapper.rules) with ActorLogging {
-  override def receiver = {
+  extends MarketSimulator(marketId, rulesWrapper.rules) with ActorLogging {
+
+  override def receiver: PartialFunction[Any, Unit] = {
     case o: Order =>
       rulesWrapper.processOrder(o, marketId, book, tradingPrices, this.send[Streamable])
+
     case q: Quote =>
       send(q)
       //log.debug("FxMS: got quote: " + q)
       tradingPrices((q.withC, q.whatC)) = (q.bid, q.ask)
       rulesWrapper.checkPendingOrders(marketId, book, tradingPrices, this.send[Streamable])
+
     case _ =>
       println("FxMS: got unknown")
   }

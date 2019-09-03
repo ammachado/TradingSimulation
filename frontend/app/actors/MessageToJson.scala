@@ -1,22 +1,11 @@
 package actors
 
-import akka.actor.Props
-import akka.actor.Actor
-import akka.actor.ActorRef
-import scala.concurrent.duration._
-import akka.actor.ActorSystem
-import akka.actor.ActorPath
-import play.libs.Akka
-import ch.epfl.ts.data.OHLC
-import scala.concurrent.ExecutionContext.Implicits.global
+import akka.actor.{Actor, ActorRef, ActorSelection}
 import ch.epfl.ts.component.ComponentRegistration
+import net.liftweb.json.{DefaultFormats, Formats, Serialization}
+import utils.{DoubleSerializer, MapSerializer, TradingSimulationActorSelection}
+
 import scala.reflect.ClassTag
-import net.liftweb.json._
-import net.liftweb.json.Serialization.write
-import com.typesafe.config.ConfigFactory
-import utils.TradingSimulationActorSelection
-import utils.MapSerializer
-import utils.DoubleSerializer
 
 /**
  * Receives Messages of a given Class Tag from the Trading Simulation backend (ts)
@@ -26,18 +15,16 @@ import utils.DoubleSerializer
  * library with generic type parameters.
  */
 class MessageToJson[T <: AnyRef: ClassTag](out: ActorRef, actorSelection: String) extends Actor {
-  val clazz = implicitly[ClassTag[T]].runtimeClass
-  implicit val formats = DefaultFormats + MapSerializer + DoubleSerializer
+  val clazz: Class[_] = implicitly[ClassTag[T]].runtimeClass
+  implicit val formats: Formats = DefaultFormats + MapSerializer + DoubleSerializer
 
-  val actors = new TradingSimulationActorSelection(context, actorSelection).get
+  val actors: ActorSelection = new TradingSimulationActorSelection(context, actorSelection).get
 
-  actors ! ComponentRegistration(self, clazz, "frontend" + clazz)
+  actors ! ComponentRegistration(self, clazz, s"frontend$clazz")
 
-  def receive() = {
+  def receive(): PartialFunction[Any, Unit] = {
     case msg: T =>
-      out ! write(msg)
+      out ! Serialization.write(msg)
     case _ =>
   }
-
 }
-

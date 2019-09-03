@@ -24,7 +24,6 @@ object TraderReactionBenchmark {
 
     // Persistor
     val persistor = new TransactionPersistor("bench-persistor")
-    persistor.init()
 
     // Create Components
     val orderFeeder = builder.createRef(Props(classOf[OrderFeeder], orders), "orderFeeder")
@@ -38,7 +37,7 @@ object TraderReactionBenchmark {
     orderFeeder->(market, classOf[LimitAskOrder], classOf[LimitBidOrder],
       classOf[MarketAskOrder], classOf[MarketBidOrder], classOf[DelOrder], classOf[LastOrder])
     // used to test without the backloop
-//    market->(trader, classOf[Transaction])
+    //market->(trader, classOf[Transaction])
     market->(backloop, classOf[Transaction])
     backloop->(trader, classOf[Transaction])
     trader->(market, classOf[LastOrder])

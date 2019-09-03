@@ -1,15 +1,12 @@
 package ch.epfl.ts.test.component.fetch
 
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import org.scalatest.FunSuite
-import ch.epfl.ts.component.fetch.TrueFxFetcher
-import ch.epfl.ts.data.Quote
-import scala.tools.nsc.interpreter.Power
-import ch.epfl.ts.data.Currency
-import org.scalatest.WordSpec
-import org.scalatest.WordSpecLike
 import java.util.Calendar
+
+import ch.epfl.ts.component.fetch.TrueFxFetcher
+import ch.epfl.ts.data.{Currency, Quote}
+import org.junit.runner.RunWith
+import org.scalatest.WordSpec
+import org.scalatestplus.junit.JUnitRunner
 
 
 @RunWith(classOf[JUnitRunner]) 

@@ -7,7 +7,7 @@ import ch.epfl.ts.engine.Actors._
 
 class Controller(wm: WalletManager, me: MatcherEngine) extends Actor {
   type ClientId = Long
-  var clients = Map[ClientId, Client]()
+  var clients: Map[ClientId, Client] = Map[ClientId, Client]()
 
   override def receive: Receive = {
     case ro: RejectedOrder => deny(ro)

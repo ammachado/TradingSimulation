@@ -57,10 +57,9 @@ abstract class Order() extends Streamable with Chargeable {
   def withC: Currency
   def volume: Double
   def price: Double
-  override def chargedTraderId() = uid
-  override def costCurrency() = withC
+  override def chargedTraderId(): Long = uid
+  override def costCurrency(): Currency = withC
 }
-
 
 /**
  * Type of orders: You send a bid order if you want to buy a security at a given price.
@@ -96,7 +95,7 @@ case class LimitBidOrder(val oid: Long, val uid: Long, val timestamp: Long, val 
  */
 case class LimitAskOrder(val oid: Long, val uid: Long, val timestamp: Long, val whatC: Currency, val withC: Currency, val volume: Double, val price: Double)
   extends LimitOrder {
-  override def costCurrency() = whatC
+  override def costCurrency(): Currency = whatC
 }
 
 /**
@@ -107,7 +106,7 @@ case class LimitAskOrder(val oid: Long, val uid: Long, val timestamp: Long, val 
  */
 case class LimitShortOrder(val oid: Long, val uid: Long, val timestamp: Long, val whatC: Currency, val withC: Currency, val volume: Double, val price: Double)
   extends LimitOrder {
-  override def costCurrency() = whatC
+  override def costCurrency(): Currency = whatC
 }
 
 //TODO: remove price from common subclass, as for MarketOrders it doesn't make sense
@@ -131,7 +130,7 @@ case class MarketBidOrder(val oid: Long, val uid: Long, val timestamp: Long, val
  */
 case class MarketAskOrder(val oid: Long, val uid: Long, val timestamp: Long, val whatC: Currency, val withC: Currency, val volume: Double, val price: Double)
   extends MarketOrder {
-  override def costCurrency() = whatC
+  override def costCurrency(): Currency = whatC
 }
 /**
  * @param whatC Which currency we are buying
@@ -141,7 +140,7 @@ case class MarketAskOrder(val oid: Long, val uid: Long, val timestamp: Long, val
  */
 case class MarketShortOrder(val oid: Long, val uid: Long, val timestamp: Long, val whatC: Currency, val withC: Currency, val volume: Double, val price: Double)
   extends MarketOrder {
-  override def costCurrency() = whatC
+  override def costCurrency(): Currency = whatC
 }
 
 /**
@@ -174,27 +173,17 @@ case class OHLC(marketId: Long, open: Double, high: Double, low: Double, close: 
  * @see LimitOrder
  */
 case class Quote(marketId: Long, timestamp: Long, whatC: Currency, withC: Currency, bid: Double, ask: Double) extends Streamable {
-  override def toString() = "(" + whatC.toString().toUpperCase() + "/" + withC.toString().toUpperCase() + ") = (" + bid + ", " + ask + ")";
+  override def toString() = s"(${whatC.toString().toUpperCase()}/${withC.toString().toUpperCase()} = ($bid, $ask)"
 }
 
 /**
  * Signals that the Fetcher component will not send any more messages
  * 
- * @param Last timestamp seen (either real or simulated), in milliseconds
+ * @param lastTimestamp Las timestamp seen (either real or simulated), in milliseconds
  * @example In the case of historical data, this message is sent out when
  *          there are no more quotes to be sent sent.
  */
 case class EndOfFetching(lastTimestamp: Long) extends Streamable
-
-/**
- * Data Transfer Object representing a Tweet
- * @param timestamp
- * @param content
- * @param sentiment
- * @param imagesrc
- * @param author
- */
-case class Tweet(timestamp: Long, content: String, sentiment: Int, imagesrc: String, author: String) extends Streamable
 
 /**
  * Messages that are used for the communication between broker and its agents

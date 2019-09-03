@@ -21,7 +21,6 @@ class CSVFetcher {
   def loadInPersistor(filename: String) {
     // name the db as "[filename without extension].db"
     val ordersPersistor = new OrderPersistor(filename.replaceAll("\\.[^.]*$", ""))
-    ordersPersistor.init()
     var counter = 0
     val startTime = System.currentTimeMillis()
     val source = Source.fromFile(filename)

@@ -35,7 +35,6 @@ class HybridMarketSimulator(marketId: Long, rules1: FxMarketRulesWrapper, rules2
   // TODO: tweak value
   val spread = 0.1
 
-
   override def receiver: PartialFunction[Any, Unit] = {
     case o: Order => {
       getCurrentRules.processOrder(o, marketId, book, tradingPrices, this.send[Streamable])
@@ -77,8 +76,8 @@ class HybridMarketSimulator(marketId: Long, rules1: FxMarketRulesWrapper, rules2
   def playMarketMaker() = {
     val asksEmpty = if (book.asks.isEmpty) 1 else 0
     val bidsEmpty = if (book.bids.isEmpty) 1 else 0
-    if (asksEmpty + bidsEmpty == 1){
-      val order = if (asksEmpty == 1){
+    if (asksEmpty + bidsEmpty == 1) {
+      val order = if (asksEmpty == 1) {
         val topBid = book.bids.head
         LimitAskOrder(1, -1, topBid.timestamp, topBid.whatC, topBid.withC, topBid.volume, topBid.price * (1 + spread))
       } else {
@@ -95,6 +94,7 @@ class HybridMarketSimulator(marketId: Long, rules1: FxMarketRulesWrapper, rules2
     else
       rules1
   }
+
   def changeRules = {
     if (!isSimulating) rules2.initQuotes(lastQuote) // allows for smooth transition to simulation
     isSimulating = !isSimulating

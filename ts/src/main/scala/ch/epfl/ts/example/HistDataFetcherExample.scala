@@ -14,7 +14,7 @@ import scala.reflect.ClassTag
  */
 object HistDataFetcherExample {
   def main(args: Array[String]) {
-    implicit val builder = new ComponentBuilder("HistFetcherExample")
+    implicit val builder: ComponentBuilder = new ComponentBuilder("HistFetcherExample")
 
     // variables for the fetcher
     val speed = 60.0
@@ -25,8 +25,10 @@ object HistDataFetcherExample {
     val currencyPair = "EURCHF";
 
     // Create Components
+
     // build fetcher
     val fetcher = builder.createRef(Props(classOf[HistDataCSVFetcher], workingDir, currencyPair, startDate, endDate, speed),"HistFetcher")
+
     // build printer
     val printer = builder.createRef(Props(classOf[Printer], "Printer"), "Printer")
 

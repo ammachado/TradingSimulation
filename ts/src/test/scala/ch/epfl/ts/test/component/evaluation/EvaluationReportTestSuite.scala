@@ -1,11 +1,10 @@
 package ch.epfl.ts.test.component.evaluation
 
+import ch.epfl.ts.data.Currency
 import ch.epfl.ts.evaluation.EvaluationReport
 import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
 import org.scalatest.FunSuite
-import ch.epfl.ts.data.Currency
-
+import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class EvaluationReportTestSuite extends FunSuite {

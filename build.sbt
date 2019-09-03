@@ -7,30 +7,30 @@ name := "TradingSimProject"
 
 version in ThisBuild := "0.1"
 
-scalaVersion in ThisBuild := "2.11.6"
+scalaVersion in ThisBuild := "2.12.9"
 
 autoScalaLibrary in ThisBuild := true
 
-ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+//ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
 
 scalacOptions in ThisBuild ++= Seq("-deprecation", "-feature")
-
-resolvers in ThisBuild += "Akka Snapshot Repository" at "http://repo.akka.io/snapshots/"
 
 lazy val frontend = (project in file("frontend"))
     .enablePlugins(PlayScala)
     .settings(
         name := "frontend",
-        libraryDependencies ++= (Dependencies.frontend  ++ Seq(filters, cache)),
+        libraryDependencies ++= (Seq(specs2) ++ Dependencies.frontend ++ Seq(filters, cacheApi)),
         pipelineStages := Seq(rjs, digest, gzip)
-    ).dependsOn(ts).aggregate(ts)
+    )
+    .dependsOn(ts)
+    .aggregate(ts)
 
 lazy val ts = (project in file("ts"))
     .settings(
         name := "ts",
         libraryDependencies ++= Dependencies.ts,
         // Add res directory to runtime classpath
-        unmanagedClasspath in Runtime <+= (baseDirectory) map { bd => Attributed.blank(bd / "src/main/resources") }
+        unmanagedClasspath in Runtime += baseDirectory.value / "src/main/resources"
     )
 
 // Some of our tests require sequential execution

@@ -15,7 +15,7 @@ import ch.epfl.ts.data.LimitAskOrder
  */
 class BackLoop(marketId: Long, p: Persistance[Transaction]) extends Component {
 
-  override def receiver = {
+  override def receiver: PartialFunction[Any, Unit] = {
     case t: Transaction => {
       send(t)
       p.save(t)

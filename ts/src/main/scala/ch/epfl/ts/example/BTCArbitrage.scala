@@ -11,7 +11,6 @@ import ch.epfl.ts.component.fetch.MarketNames
 import ch.epfl.ts.component.fetch.PullFetchComponent
 import ch.epfl.ts.component.persist.TransactionPersistor
 import ch.epfl.ts.component.utils.BackLoop
-import ch.epfl.ts.component.utils.Printer
 import ch.epfl.ts.data.DelOrder
 import ch.epfl.ts.data.LimitAskOrder
 import ch.epfl.ts.data.LimitBidOrder
@@ -39,13 +38,11 @@ import ch.epfl.ts.data.WalletParameter
 object BTCArbitrage {
 
   def main(args: Array[String]) {
-    implicit val builder = new ComponentBuilder("ArbitrageSystem")
+    implicit val builder: ComponentBuilder = new ComponentBuilder("ArbitrageSystem")
 
     // Initialize the Interfaces to the DBs
     val btceXactPersit = new TransactionPersistor("btce-transaction-db2")
-    btceXactPersit.init()
     val bitstampXactPersist = new TransactionPersistor("bitstamp-transaction-db2")
-    bitstampXactPersist.init()
 
     // Instantiate Transaction fetchers for Bitcoin exchange markets
     val btceMarketId = MarketNames.BTCE_ID

@@ -1,9 +1,7 @@
 package ch.epfl.ts.component.fetch
 
-import ch.epfl.ts.data.Currency
-import ch.epfl.ts.data.Quote
+import ch.epfl.ts.data.{Currency, Quote}
 import org.apache.http.client.fluent.Request
-import ch.epfl.ts.data.OHLC
 
 /**
  * Fetcher for the TrueFX HTTP API, which provides live Forex quotes for free
@@ -16,9 +14,9 @@ class TrueFxFetcher(symbols: List[(Currency, Currency)] = List())
     extends PullFetch[Quote]
     with Serializable {
 
-  val serverBase = "http://webrates.truefx.com/rates/connect.html" + "?f=csv"
+  val serverBase: String = "http://webrates.truefx.com/rates/connect.html" + "?f=csv"
 
-  val marketId = MarketNames.FOREX_ID
+  val marketId: Long = MarketNames.FOREX_ID
 
   def fetch(): List[Quote] = {
     val csv = Request.Get(serverBase).execute().returnContent().asString()
@@ -28,7 +26,6 @@ class TrueFxFetcher(symbols: List[(Currency, Currency)] = List())
       val fields = line.split(',')
       val currencies = fields(0).split('/').map(s => Currency.fromString(s.toLowerCase))
       val timestamp = fields(1).toLong
-      val values = fields.drop(1).map(s => s.toDouble)
 
       /**
        * Prices are separated in "big figure" and "points".
@@ -40,14 +37,13 @@ class TrueFxFetcher(symbols: List[(Currency, Currency)] = List())
       Quote(marketId, timestamp, currencies(0), currencies(1), bid, ask)
     }
 
-
     for {
       line <- csv.split('\n').toList
-      if (line.length() > 1) // Eliminate the last empty line
+      if line.length() > 1 // Eliminate the last empty line
       quote = parseLine(line)
 
       // Filter on the currencies that the user is interested in
-      if (symbols.isEmpty || symbols.contains((quote.whatC, quote.withC)))
+      if symbols.isEmpty || symbols.contains((quote.whatC, quote.withC))
     } yield quote
   }
 

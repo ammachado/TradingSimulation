@@ -22,5 +22,5 @@ abstract class MarketSimulator(marketId: Long, rules: MarketRules) extends Compo
   // TODO: need to set initial trading price?
   var tradingPrices: Prices = MHashMap[(Currency, Currency), (Double, Double)]()
   
-  val book = OrderBook(rules.bidsOrdering, rules.asksOrdering)
+  val book = OrderBook(rules.bidsOrdering(), rules.asksOrdering())
 }

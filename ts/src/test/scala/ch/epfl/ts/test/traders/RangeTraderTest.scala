@@ -1,40 +1,20 @@
 package ch.epfl.ts.test.traders
 
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
-import scala.reflect.ClassTag
-import org.junit.runner.RunWith
-import org.scalatest.WordSpecLike
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.actorRef2Scala
+import akka.actor.{ActorRef, Props, actorRef2Scala}
 import akka.testkit.EventFilter
 import ch.epfl.ts.component.StartSignal
 import ch.epfl.ts.component.fetch.MarketNames
-import ch.epfl.ts.data.CoefficientParameter
-import ch.epfl.ts.data.Currency
-import ch.epfl.ts.data.CurrencyPairParameter
-import ch.epfl.ts.data.MarketAskOrder
-import ch.epfl.ts.data.MarketBidOrder
-import ch.epfl.ts.data.OHLC
-import ch.epfl.ts.data.Quote
-import ch.epfl.ts.data.RealNumberParameter
-import ch.epfl.ts.data.Register
-import ch.epfl.ts.data.StrategyParameters
-import ch.epfl.ts.data.WalletParameter
-import ch.epfl.ts.engine.ExecutedAskOrder
-import ch.epfl.ts.engine.ExecutedBidOrder
-import ch.epfl.ts.engine.ForexMarketRules
-import ch.epfl.ts.engine.FundWallet
-import ch.epfl.ts.engine.GetWalletFunds
-import ch.epfl.ts.engine.Wallet
-import ch.epfl.ts.test.ActorTestSuite
-import ch.epfl.ts.test.FxMarketWrapped
-import ch.epfl.ts.test.SimpleBrokerWrapped
-import ch.epfl.ts.traders.RangeTrader
-import ch.epfl.ts.data.Quote
-import org.scalatest.junit.JUnitRunner
+import ch.epfl.ts.data._
+import ch.epfl.ts.engine.{ForexMarketRules, Wallet}
 import ch.epfl.ts.indicators.RangeIndic
+import ch.epfl.ts.test.{ActorTestSuite, FxMarketWrapped, SimpleBrokerWrapped}
+import ch.epfl.ts.traders.RangeTrader
+import org.junit.runner.RunWith
+import org.scalatestplus.junit.JUnitRunner
+
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
+import scala.reflect.ClassTag
 
 @RunWith(classOf[JUnitRunner])
 class RangeTraderTest

@@ -1,11 +1,6 @@
 package ch.epfl.ts.engine
 
-import ch.epfl.ts.data.Currency
-import ch.epfl.ts.data.{ DelOrder, LimitAskOrder, LimitBidOrder, MarketAskOrder, MarketBidOrder, Order, Streamable, Transaction }
-import ch.epfl.ts.component.fetch.MarketNames
-import ch.epfl.ts.data.MarketBidOrder
-import ch.epfl.ts.data.MarketAskOrder
-import akka.actor.ActorLogging
+import ch.epfl.ts.data.{ MarketAskOrder, MarketBidOrder, Order, Streamable, Transaction }
 
 /**
  * represents the cost of placing a bid and market order

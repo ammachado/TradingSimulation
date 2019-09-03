@@ -30,5 +30,4 @@ object RangeTraderExample extends AbstractTraderShowcaseExample {
       RangeTrader.ORDER_WINDOW -> CoefficientParameter(0.20)
     )
   })
-
 }

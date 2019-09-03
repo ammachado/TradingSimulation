@@ -4,26 +4,27 @@ import java.io._
 
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 
-import scala.io.Source
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.io.{BufferedSource, Source}
 import scala.util.Random
 
 /**
  * Benchmarking reading data from a csv file, parsing it and instantiating Transaction objects from it
- *
  */
 object LoadFromFileBenchmark {
 
-  def main(args: Array[String]) = {
-    //    generateFakeData
+  def main(args: Array[String]): Unit = {
+    //generateFakeData
     val filename = "fakeData-999721.csv"
 
     println("#####----- Java: using BufferedReader -----#####")
-    var br: BufferedReader = null;
-    var line: String = "";
-    val cvsSplitBy: String = ",";
+    var br: BufferedReader = null
+    var line: String = ""
+    val cvsSplitBy: String = ","
     var rawList: List[String] = List()
 
-    br = new BufferedReader(new FileReader(filename));
+    br = new BufferedReader(new FileReader(filename))
     print("read file and store into List: ")
     val startTime = System.currentTimeMillis()
     while ({ line = br.readLine(); line != null }) {
@@ -31,11 +32,11 @@ object LoadFromFileBenchmark {
     }
     println((System.currentTimeMillis() - startTime) + "ms.")
     if (br != null) {
-      br.close();
+      br.close()
     }
 
     var splitList: List[Array[String]] = List()
-    br = new BufferedReader(new FileReader(filename));
+    br = new BufferedReader(new FileReader(filename))
     print("read file, parse and store into List: ")
     val startTime2 = System.currentTimeMillis()
     while ({ line = br.readLine(); line != null }) {
@@ -45,7 +46,7 @@ object LoadFromFileBenchmark {
     println((System.currentTimeMillis() - startTime2) + " ms.")
 
     if (br != null) {
-      br.close();
+      br.close()
     }
     println
 
@@ -56,8 +57,9 @@ object LoadFromFileBenchmark {
     val entriesList = timed(source.getLines().toList)
     println("entries count: " + entriesList.size)
     print("from list: parse each element and instantiate Transaction objects: ")
-//    timed(
-//      entriesList.map(_.split(",")).map(l => Transaction(l(1).toDouble, l(2).toDouble, l(0).toLong, Currency.withName(l(3)), l(4), l(5))))
+    //timed(
+    //  entriesList.map(_.split(",")).map(l => Transaction(l(1).toDouble, l(2).toDouble, l(0).toLong, Currency.withName(l(3)), l(4), l(5)))
+    //)
 
     println("###--- Buffered run ---###")
     print("read from file, instantiate Iterator, parse and instantiate Transaction objects: ")
@@ -65,11 +67,10 @@ object LoadFromFileBenchmark {
     timed(source.getLines().foreach(
       s => {
         val l = s.split(",")
-//        Transaction(l(1).toDouble, l(2).toDouble, l(0).toLong, Currency.withName(l(3)), l(4), l(5))
+        //Transaction(l(1).toDouble, l(2).toDouble, l(0).toLong, Currency.withName(l(3)), l(4), l(5))
       }))
     println
 
-    
     println("#####----- Scala: using akka Actors and scala.io.Source -----#####")
     val system = ActorSystem("ReadingBenchmarking")
     val bufferedReader = system.actorOf(Props(new BufferedReaderActor(filename)), "bufferedReader")
@@ -78,49 +79,47 @@ object LoadFromFileBenchmark {
   }
 
   class SimpleReaderActor(filename: String, next: ActorRef) extends Actor {
-    
 
-    def receive = {
+    def receive: PartialFunction[Any, Unit] = {
       case "Start" => timed({
         //val start = System.currentTimeMillis()
         val source = Source.fromFile(filename)
         print("read file and store into list: ")
-//        val entriesList = timed(source.getLines().toList)
+        //val entriesList = timed(source.getLines().toList)
         
         val entriesList = source.getLines().toList
-        //println( (System.currentTimeMillis()-start) + " ms")
-//        next ! "Start"
-        context.system.shutdown()
+        //println(s"${System.currentTimeMillis()-start} ms")
+        //next ! "Start"
+        Await.result(context.system.terminate(), 10.seconds)
       })
     }
   }
 
   class BufferedReaderActor(filename: String) extends Actor {
-    val source = Source.fromFile(filename)
+    val source: BufferedSource = Source.fromFile(filename)
 
-    def receive = {
-      case "Start" => {
-        print("read from file, instantiate Iterator, parse and instantiate Transaction objects: ")
+    def receive: PartialFunction[Any, Unit] = {
+      case "Start" =>
+        print("read from file, instantiate Iterator, parse and instantiate Transaction objects:")
 
         timed(source.getLines().foreach(
           s => {
             val l = s.split(",")
-//            Transaction(l(1).toDouble, l(2).toDouble, l(0).toLong, Currency.withName(l(3)), l(4), l(5))
+            //Transaction(l(1).toDouble, l(2).toDouble, l(0).toLong, Currency.withName(l(3)), l(4), l(5))
           }))
 
-        context.system.shutdown()
-      }
+        Await.result(context.system.terminate(), 10.seconds)
     }
   }
 
-  def timed[A](block: => A) = {
+  def timed[A](block: => A): A = {
     val t0 = System.currentTimeMillis
     val result = block
     println((System.currentTimeMillis - t0) + "ms")
     result
   }
 
-  def generateFakeData = {
+  def generateFakeData(): Unit = {
     val writer = new PrintWriter(new File("fakeData.csv"))
     val rnd = new Random()
     for (a <- 1 to 1000000) {

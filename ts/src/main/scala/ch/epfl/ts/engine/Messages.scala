@@ -1,11 +1,8 @@
 package ch.epfl.ts.engine
 
-import ch.epfl.ts.data.Currency
-import ch.epfl.ts.data.Order
 import akka.actor.ActorRef
-import ch.epfl.ts.data.StrategyParameters
+import ch.epfl.ts.data.{Currency, Order, StrategyParameters, Streamable}
 import ch.epfl.ts.traders.TraderCompanion
-import ch.epfl.ts.data.Streamable
 
 /*
  * Definition of the Simulator's internal messages.
@@ -16,28 +13,30 @@ import ch.epfl.ts.data.Streamable
  */
 
 /* Answer */
-case class AcceptedOrder(val oid: Long, val uid: Long, val timestamp: Long, val whatC: Currency, val withC: Currency, val volume: Double, val price: Double)
+case class AcceptedOrder(oid: Long, uid: Long, timestamp: Long, whatC: Currency, withC: Currency, volume: Double, price: Double)
   extends Order
 
 object AcceptedOrder {
   def apply(o: Order): AcceptedOrder = AcceptedOrder(o.oid, o.uid, o.timestamp, o.whatC, o.withC, o.volume, o.price)
 }
 
-case class RejectedOrder(val oid: Long, val uid: Long, val timestamp: Long, val whatC: Currency, val withC: Currency, val volume: Double, val price: Double)
+case class RejectedOrder(oid: Long, uid: Long, timestamp: Long, whatC: Currency, withC: Currency, volume: Double, price: Double)
   extends Order
 
 object RejectedOrder {
   def apply(o: Order): RejectedOrder = RejectedOrder(o.oid, o.uid, o.timestamp, o.whatC, o.withC, o.volume, o.price)
 }
-case class ExecutedBidOrder(val oid: Long, val uid: Long, val timestamp: Long, val whatC: Currency, val withC: Currency, val volume: Double, val price: Double)
+
+case class ExecutedBidOrder(oid: Long, uid: Long, timestamp: Long, whatC: Currency, withC: Currency, volume: Double, price: Double)
   extends Order
 
-case class ExecutedAskOrder(val oid: Long, val uid: Long, val timestamp: Long, val whatC: Currency, val withC: Currency, val volume: Double, val price: Double)
+case class ExecutedAskOrder(oid: Long, uid: Long, timestamp: Long, whatC: Currency, withC: Currency, volume: Double, price: Double)
   extends Order
 
 object ExecutedBidOrder {
   def apply(o: Order, price: Double): ExecutedBidOrder = ExecutedBidOrder(o.oid, o.uid, o.timestamp, o.whatC, o.withC, o.volume, price)
 }
+
 object ExecutedAskOrder {
   def apply(o: Order, price: Double): ExecutedAskOrder = ExecutedAskOrder(o.oid, o.uid, o.timestamp, o.whatC, o.withC, o.volume, price)
 }
@@ -46,13 +45,15 @@ object ExecutedAskOrder {
  * Traders
  */
 abstract class TraderMessage extends Streamable
+
 /**
  * Send this message when needing to retrieve a trader's strategy parameters
  */
 case object GetTraderParameters extends TraderMessage
+
 case class TraderIdentity(name: String, uid: Long, strategy: TraderCompanion, parameters: StrategyParameters) extends TraderMessage
 
-/* *****************************
+/**
  * Wallet
  */
 abstract class WalletState(val uid: Long) extends Streamable
@@ -77,6 +78,7 @@ case class GetWalletCanceledOrder(override val uid: Long) extends WalletState(ui
 case class WalletFunds(override val uid: Long, f: Wallet.Type) extends WalletState(uid)
 
 case class WalletConfirm(override val uid: Long) extends WalletState(uid)
+
 case class WalletInsufficient(override val uid: Long) extends WalletState(uid)
 
 case class WalletAllOrders(override val uid: Long, opO: List[Order], clO: List[Order], caO: List[Order]) extends WalletState(uid)
@@ -89,12 +91,13 @@ case class WalletCanceledOrders(override val uid: Long, caO: List[Order]) extend
 
 /* Actions */
 case class FundWallet(override val uid: Long, c: Currency, q: Double, allowNegative: Boolean = false) extends WalletState(uid)
+
 //TODO(sygi): remove unnecessary messages
 
-/* *****************************
+/**
  * Matcher
  */
-abstract class MatcherState() extends Streamable
+abstract class MatcherState extends Streamable
 
 /* Getter */
 case class GetMatcherOrderBook(count: Int) extends MatcherState

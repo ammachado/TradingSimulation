@@ -1,19 +1,16 @@
 package ch.epfl.ts.benchmark.marketSimulator
 
-import scala.collection.mutable.ListBuffer
-import scala.io.StdIn
-
 import akka.actor.Props
 import ch.epfl.ts.component.ComponentBuilder
 import ch.epfl.ts.component.persist.OrderPersistor
-import ch.epfl.ts.data.Currency.BTC
-import ch.epfl.ts.data.Currency.USD
-import ch.epfl.ts.data.DelOrder
-import ch.epfl.ts.data.LimitAskOrder
-import ch.epfl.ts.data.LimitBidOrder
-import ch.epfl.ts.data.MarketAskOrder
-import ch.epfl.ts.data.MarketBidOrder
-import ch.epfl.ts.data.Order
+import ch.epfl.ts.data.Currency.{BTC, USD}
+import ch.epfl.ts.data._
+
+import scala.collection.mutable.ListBuffer
+import scala.concurrent.Await
+import scala.concurrent.duration._
+import scala.io.StdIn
+import scala.util.Random
 
 /**
  * This performance test calculates the time it takes for the MarketSimulator 
@@ -26,15 +23,15 @@ import ch.epfl.ts.data.Order
  */
 object MarketSimulatorBenchmark {
 
-  var r = scala.util.Random
+  private[MarketSimulatorBenchmark] var r: Random.type = scala.util.Random
 
   def main(args: Array[String]) {
 
     //val orders = loadOrdersFromPersistor(500000, "finance")
     val orders = generateOrders(250000)
-    
+
     println(orders.length)
-    
+
     // create factory
     val builder = new ComponentBuilder("MarketSimulatorBenchmarkSystem")
 
@@ -45,17 +42,17 @@ object MarketSimulatorBenchmark {
 
     // Create Connections
     //orders
-    orderFeeder->(market, classOf[LimitAskOrder], classOf[LimitBidOrder],
+    orderFeeder -> (market, classOf[LimitAskOrder], classOf[LimitBidOrder],
       classOf[MarketAskOrder], classOf[MarketBidOrder], classOf[DelOrder], classOf[LastOrder])
+
     // start and end signals
-    orderFeeder->(timeCounter, classOf[StartSending])
-    market->(timeCounter, classOf[FinishedProcessingOrders])
+    orderFeeder -> (timeCounter, classOf[StartSending])
+    market -> (timeCounter, classOf[FinishedProcessingOrders])
 
     // start the benchmark
-    builder.start
+    builder.start()
     StdIn.readLine("Press ENTER to exit...")
-    builder.system.shutdown()
-    builder.system.awaitTermination()
+    Await.result(builder.system.terminate(), 10.seconds)
   }
 
   def generateOrders(count: Int): List[Order] = {
@@ -66,7 +63,7 @@ object MarketSimulatorBenchmark {
     // to MA and MB orders
     // so: LB = 23.4%, LA = 35.1%, MB = 4.2%, MA = 5.7%, DEL = 31.6%
     // implementation: LB=0-233, LA=234-584, MB=585-626, MA=627-683, DEL=684-999
-    var orders: ListBuffer[Order] = ListBuffer[Order]()
+    val orders: ListBuffer[Order] = ListBuffer[Order]()
     var oid: Int = 0
     // store used order ids
     var lbOids: Set[Int] = Set[Int]()
@@ -74,7 +71,7 @@ object MarketSimulatorBenchmark {
     // set trading price params
     val tradingPrice = 100
     val spread = 20
-    
+
     // generate relevant prices
     while (orders.length <= count) {
       if (orders.length % 10000 == 0) {
@@ -109,7 +106,7 @@ object MarketSimulatorBenchmark {
         val it2 = r.nextInt(585)
         // generate delete order for limit bid order
         if ((it2 >= 0) && (it2 < 234)) {
-          if (lbOids.size > 0) {
+          if (lbOids.nonEmpty) {
             val lbIdToDelete = lbOids.toVector(r.nextInt(lbOids.size))
             orders.append(DelOrder(lbIdToDelete, 0L, System.currentTimeMillis(), BTC, USD, 0.0, 0.0))
             lbOids -= lbIdToDelete
@@ -117,7 +114,7 @@ object MarketSimulatorBenchmark {
         }
         // generate delete order for limit ask order
         else if ((it2 >= 234) && (it2 <= 585)) {
-          if (laOids.size > 0) {
+          if (laOids.nonEmpty) {
             val laIdToDelete = laOids.toVector(r.nextInt(laOids.size))
             orders.append(DelOrder(laIdToDelete, 0L, System.currentTimeMillis(), BTC, USD, 0.0, 0.0))
             laOids -= laIdToDelete
@@ -142,51 +139,48 @@ object MarketSimulatorBenchmark {
 
   def loadOrdersFromPersistor(count: Int, persistorName: String): List[Order] = {
     val financePersistor = new OrderPersistor(persistorName) // requires to have run CSVFetcher on finance.csv (obtained by mail from Milos)
-    financePersistor.init()
     var orders: List[Order] = Nil
     orders = financePersistor.loadBatch(count)
 
-//    for(i <- 1 to count) {
-//      if (i % 100 == 0) println("loaded " + i + "th order from persistor")
-//      orders = financePersistor.loadSingle(i) :: orders
-//    }
+    //    for(i <- 1 to count) {
+    //      if (i % 100 == 0) println(s"loaded $ith order from persistor")
+    //      orders = financePersistor.loadSingle(i) :: orders
+    //    }
     orders
   }
 
   // print the generated orders distribution
-  def countOrderTypes(orders: List[Order]) = {
+  def countOrderTypes(orders: List[Order]): Unit = {
     var laCount = 0
     var lbCount = 0
     var maCount = 0
     var mbCount = 0
     var delCount = 0
-    orders.map {
-        case o: LimitBidOrder => lbCount = lbCount + 1
-        case o: LimitAskOrder => laCount = laCount + 1
-        case o: MarketAskOrder => maCount = maCount + 1
-        case o: MarketBidOrder => mbCount = mbCount + 1
-        case o: DelOrder => delCount = delCount + 1
+    orders.foreach {
+      case _: LimitBidOrder => lbCount = lbCount + 1
+      case _: LimitAskOrder => laCount = laCount + 1
+      case _: MarketAskOrder => maCount = maCount + 1
+      case _: MarketBidOrder => mbCount = mbCount + 1
+      case _: DelOrder => delCount = delCount + 1
     }
     println("Total: " + orders.size + ", LA: " + laCount + ", LB: " + lbCount + ", MA: " + maCount + ", MB: " + mbCount + ", DEL: " + delCount)
   }
 
   // count the occurences of different types of orders in finance.csv to get an idea of how to generate fake orders for the benchmarking
-  // results: LB orders= 26%, LA orders = 39%, DEL orders = 35%
+  // results: LB orders = 26%, LA orders = 39%, DEL orders = 35%
   def countOrderDistributionInFinanceCSV(): Unit = {
     val financePersistor = new OrderPersistor("finance") // requires to have run CSVFetcher on finance.csv (obtained by mail from Milos)
-    financePersistor.init()
     var laOrders: Int = 0
     var lbOrders: Int = 0
     var delOrders: Int = 0
-    var order: Order = null
     for (i <- 1 to 50000) {
       financePersistor.loadSingle(i) match {
-        case lb: LimitBidOrder => laOrders = laOrders + 1
-        case la: LimitAskOrder => lbOrders = lbOrders + 1
-        case del: DelOrder => delOrders = delOrders + 1
+        case _: LimitBidOrder => laOrders = laOrders + 1
+        case _: LimitAskOrder => lbOrders = lbOrders + 1
+        case _: DelOrder => delOrders = delOrders + 1
         case _ =>
       }
     }
-    println("LB orders: " + lbOrders + ", LA orders: " + laOrders + ", DEL orders: " + delOrders)
+    println(s"LB orders: $lbOrders, LA orders: $laOrders, DEL orders: $delOrders")
   }
 }

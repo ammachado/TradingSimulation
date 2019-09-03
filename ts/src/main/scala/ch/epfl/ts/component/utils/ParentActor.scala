@@ -1,8 +1,6 @@
 package ch.epfl.ts.component.utils
 
-import akka.actor.Actor
-import akka.actor.Props
-import akka.actor.ActorRef
+import akka.actor.{Actor, ActorRef, Props}
 import ch.epfl.ts.data.Streamable
 
 object ParentActor {
@@ -17,13 +15,11 @@ object ParentActor {
  * It only serves as a sub-root in the actor hierarchy.
  */
 class ParentActor extends Actor {
-	import context.dispatcher
-  import ParentActor._
+	import ParentActor._
   
-  def receive = {
-    case Create(props, name) => {
+  override def receive: PartialFunction[Any, Unit] = {
+    case Create(props, name) =>
       val ref = context.actorOf(props, name)
       sender ! Done(ref)
-    }
   }
 }

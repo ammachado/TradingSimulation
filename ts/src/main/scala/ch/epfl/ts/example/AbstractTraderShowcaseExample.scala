@@ -1,8 +1,7 @@
 package ch.epfl.ts.example
 
-import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.language.postfixOps
-
 import ch.epfl.ts.data.Currency
 import ch.epfl.ts.data.EndOfFetching
 import ch.epfl.ts.data.MarketAskOrder
@@ -36,15 +35,15 @@ abstract class AbstractTraderShowcaseExample extends AbstractForexExample with T
   def endDate: String
 
   // ----- Evaluation
-  def evaluationPeriod = (10 seconds)
-  def referenceCurrency = symbol._2
+  def evaluationPeriod: FiniteDuration = 10.seconds
+  def referenceCurrency: Currency = symbol._2
 
   lazy val factory = {
     if(useLiveData) new ForexLiveStrategyFactory(evaluationPeriod, referenceCurrency)
     else new ForexReplayStrategyFactory(evaluationPeriod, referenceCurrency, symbol, replaySpeed, startDate, endDate)
   }
 
-  def makeConnections(d: SystemDeployment) = {
+  def makeConnections(d: SystemDeployment): Unit = {
     d.fetcher -> (d.market, classOf[Quote])
     d.broker -> (d.market, classOf[MarketAskOrder], classOf[MarketBidOrder])
     d.market -> (d.broker, classOf[Quote], classOf[ExecutedBidOrder], classOf[ExecutedAskOrder])
@@ -80,5 +79,4 @@ abstract class AbstractTraderShowcaseExample extends AbstractForexExample with T
     // ----- Start
     builder.start
   }
-
 }

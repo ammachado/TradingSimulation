@@ -1,34 +1,21 @@
 package ch.epfl.ts.test.traders
 
+import akka.actor.{Props, actorRef2Scala}
+import akka.testkit.EventFilter
+import ch.epfl.ts.component.fetch.MarketNames
+import ch.epfl.ts.component.{ComponentRef, StartSignal}
+import ch.epfl.ts.data._
+import ch.epfl.ts.engine.Wallet.Type
+import ch.epfl.ts.engine.{ForexMarketRules, Wallet}
+import ch.epfl.ts.indicators.SMA
+import ch.epfl.ts.test.{ActorTestSuite, FxMarketWrapped, SimpleBrokerWrapped}
+import ch.epfl.ts.traders.MovingAverageTrader
+import org.junit.runner.RunWith
+import org.scalatestplus.junit.JUnitRunner
+
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.math.floor
-import scala.reflect.ClassTag
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.actorRef2Scala
-import akka.testkit.EventFilter
-import ch.epfl.ts.component.StartSignal
-import ch.epfl.ts.component.fetch.MarketNames
-import ch.epfl.ts.data.BooleanParameter
-import ch.epfl.ts.data.Currency
-import ch.epfl.ts.data.CurrencyPairParameter
-import ch.epfl.ts.data.Quote
-import ch.epfl.ts.data.RealNumberParameter
-import ch.epfl.ts.data.StrategyParameters
-import ch.epfl.ts.data.TimeParameter
-import ch.epfl.ts.data.WalletParameter
-import ch.epfl.ts.engine.ForexMarketRules
-import ch.epfl.ts.engine.Wallet
-import ch.epfl.ts.test.ActorTestSuite
-import ch.epfl.ts.test.FxMarketWrapped
-import ch.epfl.ts.test.SimpleBrokerWrapped
-import ch.epfl.ts.traders.MovingAverageTrader
-import ch.epfl.ts.data.OHLC
-import ch.epfl.ts.data.NaturalNumberParameter
-import ch.epfl.ts.indicators.SMA
 
 /**
  * @warning Some of the following tests are dependent and should be executed in the specified order.
@@ -38,24 +25,25 @@ class MovingAverageTraderTest
   extends ActorTestSuite("MovingAverageTraderTestSystem") {
 
   val traderId: Long = 123L
-  val symbol = (Currency.USD, Currency.CHF)
+  val symbol: (Currency, Currency) = (Currency.USD, Currency.CHF)
   val initialFunds: Wallet.Type = Map(symbol._2 -> 5000.0)
-  val periods = Seq(5, 30)
+  val periods: Seq[Int] = Seq(5, 30)
   val tolerance = 0.0002
 
   val parameters = new StrategyParameters(
     MovingAverageTrader.INITIAL_FUNDS -> WalletParameter(initialFunds),
     MovingAverageTrader.SYMBOL -> CurrencyPairParameter(symbol),
     MovingAverageTrader.OHLC_PERIOD -> new TimeParameter(1 minute),
-    MovingAverageTrader.SHORT_PERIODS -> NaturalNumberParameter(periods(0)),
+    MovingAverageTrader.SHORT_PERIODS.->(NaturalNumberParameter(periods.head)),
     MovingAverageTrader.LONG_PERIODS -> NaturalNumberParameter(periods(1)),
     MovingAverageTrader.TOLERANCE -> RealNumberParameter(tolerance),
-    MovingAverageTrader.WITH_SHORT -> BooleanParameter(false))
+    MovingAverageTrader.WITH_SHORT -> BooleanParameter(false)
+  )
 
   val marketID = 1L
-  val market = builder.createRef(Props(classOf[FxMarketWrapped], marketID, new ForexMarketRules()), MarketNames.FOREX_NAME)
-  val broker = builder.createRef(Props(classOf[SimpleBrokerWrapped], market.ar), "Broker")
-  val trader = builder.createRef(Props(classOf[MovingAverageTraderWrapped], traderId,List(marketID),parameters, broker.ar), "Trader")
+  val market: ComponentRef = builder.createRef(Props(classOf[FxMarketWrapped], marketID, new ForexMarketRules()), MarketNames.FOREX_NAME)
+  val broker: ComponentRef = builder.createRef(Props(classOf[SimpleBrokerWrapped], market.ar), "Broker")
+  val trader: ComponentRef = builder.createRef(Props(classOf[MovingAverageTraderWrapped], traderId,List(marketID),parameters, broker.ar), "Trader")
 
   market.ar ! StartSignal
   broker.ar ! StartSignal
@@ -65,9 +53,9 @@ class MovingAverageTraderTest
   market.ar ! testQuote
   broker.ar ! testQuote
 
-  val initWallet = initialFunds;
-  var cash = initialFunds(Currency.CHF)
-  var volume = floor(cash / askPrice)
+  val initWallet: Type = initialFunds
+  var cash: Double = initialFunds(Currency.CHF)
+  var volume: Double = floor(cash / askPrice)
 
   "A trader " should {
 

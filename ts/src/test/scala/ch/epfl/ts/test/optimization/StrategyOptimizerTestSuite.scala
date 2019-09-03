@@ -1,22 +1,14 @@
 package ch.epfl.ts.test.optimization
 
-import scala.concurrent.duration.DurationLong
-import scala.language.postfixOps
-import scala.util.Try
+import ch.epfl.ts.data.{BooleanParameter, ParameterTrait, StrategyParameters, WalletParameter}
+import ch.epfl.ts.optimization.StrategyOptimizer
+import ch.epfl.ts.traders.{Trader, TraderCompanion}
 import org.junit.runner.RunWith
 import org.scalatest.WordSpec
-import org.scalatest.junit.JUnitRunner
-import ch.epfl.ts.data.BooleanParameter
-import ch.epfl.ts.data.ParameterTrait
-import ch.epfl.ts.data.StrategyParameters
-import ch.epfl.ts.engine.ForexMarketRules
-import ch.epfl.ts.test.ActorTestSuite
-import ch.epfl.ts.traders.Trader
-import ch.epfl.ts.traders.TraderCompanion
-import ch.epfl.ts.optimization.StrategyOptimizer
-import scala.util.Failure
-import scala.util.Success
-import ch.epfl.ts.data.WalletParameter
+import org.scalatestplus.junit.JUnitRunner
+
+import scala.language.postfixOps
+import scala.util.{Failure, Success, Try}
 
 @RunWith(classOf[JUnitRunner])
 class StrategyOptimizerTestSuite extends WordSpec {
@@ -93,8 +85,8 @@ class StrategyOptimizerTestSuite extends WordSpec {
       }
       
       val parameterizations = make()
-      val expected = Set(combination(true, true), combination(true, false),
-                         combination(false, true), combination(false, false))
+      val expected = Set(combination(b1 = true, b2 = true), combination(true, b2 = false),
+                         combination(b1 = false, b2 = true), combination(b1 = false, b2 = false))
                          
       assert(expected === parameterizations.toSet)
     }

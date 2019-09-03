@@ -35,7 +35,7 @@ for TYPE in tick-last-quotes tick-ask-quotes tick-bid-quotes; do
 	FILENAME="${YEAR}.${MONTH}.zip"
 	ORIGIN="Origin: http://${SERVER}"
 	REFERER="Referer: http://${SERVER}/download-free-forex-historical-data/?/ninjatrader/${TYPE}/${PAIR}/${YEAR}/${MONTH}"
-	DATA="tk=${TK}&date=${YEAR}&datemonth=${YEAR}${MONTH}&platform=NT&timeframe=${TYPECODE}&fxpair=${PAIR^^}"
+	DATA="tk=${TK}&date=${YEAR}&datemonth=${YEAR}${MONTH}&platform=NT&timeframe=${TYPECODE}&fxpair=${PAIR}"
 
 	# Getting and saving the data
 	mkdir -p data

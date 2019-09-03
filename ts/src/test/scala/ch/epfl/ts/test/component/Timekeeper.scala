@@ -1,14 +1,14 @@
 package ch.epfl.ts.test.component
 
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
-import org.junit.runner.RunWith
-import org.scalatest.junit.JUnitRunner
 import akka.actor.Props
 import ch.epfl.ts.component.utils.Timekeeper
 import ch.epfl.ts.data.TheTimeIs
 import ch.epfl.ts.test.ActorTestSuite
-import ch.epfl.ts.component.Component
+import org.junit.runner.RunWith
+import org.scalatestplus.junit.JUnitRunner
+
+import scala.concurrent.duration.DurationInt
+import scala.language.postfixOps
 
 @RunWith(classOf[JUnitRunner])
 class TimekeeperTestSuite extends ActorTestSuite("TimekeeperTestSuite") {

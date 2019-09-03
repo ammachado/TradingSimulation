@@ -1,16 +1,12 @@
 package ch.epfl.ts.example
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.FiniteDuration
-import ch.epfl.ts.component.ComponentBuilder
-import ch.epfl.ts.optimization.SystemDeployment
-import akka.actor.ActorRef
-import ch.epfl.ts.component.ComponentRef
-import ch.epfl.ts.optimization.StrategyFactory
-import ch.epfl.ts.data.Currency
+import akka.actor.Cancellable
+import ch.epfl.ts.component.{ComponentBuilder, ComponentRef}
 import ch.epfl.ts.component.fetch.MarketNames
-import ch.epfl.ts.optimization.HostActorSystem
-import ch.epfl.ts.optimization.RemoteHost
+import ch.epfl.ts.data.Currency
+import ch.epfl.ts.optimization.{HostActorSystem, RemoteHost, StrategyFactory, SystemDeployment}
+
+import scala.concurrent.duration.FiniteDuration
 
 
 /**
@@ -36,7 +32,7 @@ abstract class AbstractExample {
   
   /**
    * Optional supervisor actor
-   * @example [[OptimizationSupervisor]]
+   * @example [[ch.epfl.ts.optimization.OptimizationSupervisor]]
    */
   lazy val supervisorActor: Option[ComponentRef] = None
   
@@ -50,7 +46,7 @@ abstract class AbstractExample {
    * Use this if we need to terminate early regardless of the data being fetched
    */
   import scala.concurrent.ExecutionContext.Implicits.global
-  def terminateAfter(delay: FiniteDuration)(implicit builder: ComponentBuilder) = {   
+  def terminateAfter(delay: FiniteDuration)(implicit builder: ComponentBuilder): Cancellable = {
     builder.system.scheduler.scheduleOnce(delay) {
       println("---------- Terminating system after a fixed duration of " + delay)
       builder.shutdownManagedActors(delay) onComplete {
@@ -82,7 +78,7 @@ trait RemotingDeployment {
 
 abstract class AbstractForexExample extends AbstractExample {
   
-  lazy val marketIds = Seq(MarketNames.FOREX_ID)
+  lazy val marketIds: Seq[Long] = Seq(MarketNames.FOREX_ID)
   
   /** Main symbol (currency pair) being traded */
   def symbol: (Currency, Currency)

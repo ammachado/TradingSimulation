@@ -10,8 +10,8 @@ import ch.epfl.ts.data.Transaction
  */
 class BenchmarkTrader extends Component {
 
-  def receiver = {
-    case t:Transaction => send(LastOrder(0L, 0L, 0L, Currency.BTC, Currency.USD, 0.0, 0.0))
+  override def receiver: PartialFunction[Any, Unit] = {
+    case _: Transaction => send(LastOrder(0L, 0L, 0L, Currency.BTC, Currency.USD, 0.0, 0.0))
     case _ =>
   }
 }

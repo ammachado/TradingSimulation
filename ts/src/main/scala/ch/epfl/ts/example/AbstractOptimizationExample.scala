@@ -1,22 +1,13 @@
 package ch.epfl.ts.example
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.FiniteDuration
-
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.actor.actorRef2Scala
+import akka.actor.{ActorRef, Cancellable, Props, actorRef2Scala}
 import ch.epfl.ts.component.ComponentRef
-import ch.epfl.ts.component.StartSignal
 import ch.epfl.ts.data._
-import ch.epfl.ts.engine.ExecutedAskOrder
-import ch.epfl.ts.engine.ExecutedBidOrder
-import ch.epfl.ts.engine.FundWallet
-import ch.epfl.ts.engine.GetWalletFunds
+import ch.epfl.ts.engine.{ExecutedAskOrder, ExecutedBidOrder, FundWallet, GetWalletFunds}
 import ch.epfl.ts.evaluation.EvaluationReport
-import ch.epfl.ts.optimization.OptimizationSupervisor
-import ch.epfl.ts.optimization.StrategyOptimizer
-import ch.epfl.ts.optimization.SystemDeployment
+import ch.epfl.ts.optimization.{OptimizationSupervisor, StrategyOptimizer, SystemDeployment}
+
+import scala.concurrent.duration.FiniteDuration
 
 abstract class AbstractOptimizationExample extends AbstractTraderShowcaseExample {
   
@@ -38,9 +29,8 @@ abstract class AbstractOptimizationExample extends AbstractTraderShowcaseExample
   /** Provide values for the required parameters that we do not optimize for */
   def otherParameterValues: Map[String, Parameter]
   /** Generate parameterizations using the previous fields */
-  override lazy val parameterizations = {
-    StrategyOptimizer.generateParameterizations(strategy, parametersToOptimize,
-                                                otherParameterValues, maxInstances).toSet
+  override lazy val parameterizations: Set[StrategyParameters] = {
+    StrategyOptimizer.generateParameterizations(strategy, parametersToOptimize, otherParameterValues, maxInstances).toSet
   }
   
   override def makeConnections(d: SystemDeployment): Unit = {
@@ -74,7 +64,7 @@ abstract class AbstractOptimizationExample extends AbstractTraderShowcaseExample
   /**
    * Use this if we need to terminate early regardless of the data being fetched
    */
-  def terminateOptimizationAfter(delay: FiniteDuration, supervisor: ActorRef) = {
+  def terminateOptimizationAfter(delay: FiniteDuration, supervisor: ActorRef): Cancellable = {
 		import scala.concurrent.ExecutionContext.Implicits.global
     builder.system.scheduler.scheduleOnce(delay) {
       println("---------- Terminating optimization after a fixed duration of " + delay)

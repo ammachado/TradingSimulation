@@ -1,8 +1,8 @@
 package ch.epfl.ts.component.fetch
 
 import ch.epfl.ts.data.Currency
-import ch.epfl.ts.data.{DelOrder, LimitOrder, LimitAskOrder, LimitBidOrder, Order, Transaction}
-import net.liftweb.json.parse
+import ch.epfl.ts.data.{DelOrder, LimitAskOrder, LimitBidOrder, LimitOrder, Order, Transaction}
+import net.liftweb.json.{DefaultFormats, parse}
 import org.apache.http.client.fluent._
 
 /**
@@ -19,7 +19,7 @@ class BtceTransactionPullFetcher extends PullFetch[Transaction] {
     val trades = btce.getTrade(count)
     val idx = trades.indexOf(latest)
     count = if (idx < 0) 2000 else Math.min(10 * idx, 100)
-    latest = if (trades.length == 0) latest else trades.head
+    latest = if (trades.isEmpty) latest else trades.head
 
     if (idx > 0)
       trades.slice(0, idx).reverse
@@ -35,7 +35,7 @@ class BtceOrderPullFetcher extends PullFetch[Order] {
   val btceApi = new BtceAPI(Currency.USD, Currency.BTC)
   var count = 2000
   // Contains the OrderId and The fetch timestamp
-  var oldOrderBook = Map[Order, (Long, Long)]()
+  var oldOrderBook: Map[Order, (Long, Long)] = Map[Order, (Long, Long)]()
   var oid = 5000000000L
 
   override def interval(): Int = 12000
@@ -53,7 +53,7 @@ class BtceOrderPullFetcher extends PullFetch[Order] {
 
     // Indexes deleted orders and removes them from the map
     val indexedDelOrders = delOrders map { k =>
-      val oidts: (Long, Long) = oldOrderBook.get(k).get
+      val oidts: (Long, Long) = oldOrderBook(k)
       oldOrderBook -= k
       k match {
         case LimitBidOrder(o, u, ft, wac, wic, v, p) => DelOrder(oidts._1, oidts._1, oidts._2, wac, wic, v, p)
@@ -81,10 +81,10 @@ private[this] case class BTCeTransaction(date: Long, price: Double, amount: Doub
 private[this] case class BTCeDepth(asks: List[List[Double]], bids: List[List[Double]])
 
 class BtceAPI(from: Currency, to: Currency) {
-  implicit val formats = net.liftweb.json.DefaultFormats
+  implicit val formats: DefaultFormats.type = net.liftweb.json.DefaultFormats
 
   val serverBase = "https://btc-e.com/api/2/"
-  val pair = pair2path
+  val pair: String = pair2path
 
   /**
    * Fetches count transactions from BTC-e's HTTP trade API
@@ -101,8 +101,8 @@ class BtceAPI(from: Currency, to: Currency) {
       case _: Throwable => t = List[BTCeTransaction]();
     }
 
-    if (t.length != 0) {
-      t.map(f => new Transaction(MarketNames.BTCE_ID, f.price, f.amount, f.date * 1000, Currency.BTC, Currency.USD, 0, 0, 0, 0))
+    if (t.nonEmpty) {
+      t.map(f => Transaction(MarketNames.BTCE_ID, f.price, f.amount, f.date * 1000, Currency.BTC, Currency.USD, 0, 0, 0, 0))
     } else {
       List[Transaction]()
     }
@@ -133,5 +133,6 @@ class BtceAPI(from: Currency, to: Currency) {
   private def pair2path = (from, to) match {
     case (Currency.USD, Currency.BTC) => "btc_usd"
     case (Currency.BTC, Currency.USD) => "btc_usd"
+    case _ => ???
   }
 }
